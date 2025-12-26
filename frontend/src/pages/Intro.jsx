@@ -29,12 +29,12 @@ export default function LoginRegister() {
 
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
             Build Your Career<br />
-            <span className="text-blue-600">Smarter & Faster <br /> By LDRP-ITR </span>
+            <span className="text-blue-600">Smarter & Faster <br /> <p className="text-blue-600 ">By LDRP-ITR</p> </span>
           </h1>
 
           <p className="text-gray-600 text-lg">
             A modern placement and hiring ecosystem connecting students,
-            companies, and administrators on a single intelligent platform.
+            companies, and administrators on a single intelligent platform. 
           </p>
 
           <div className="flex gap-4">

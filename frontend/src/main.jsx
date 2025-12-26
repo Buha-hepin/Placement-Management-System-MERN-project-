@@ -7,6 +7,7 @@ import './index.css'
 
 import Intro from './pages/Intro';
 import Register from './pages/Register';
+import Login from './pages/Login';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -14,6 +15,7 @@ const router = createBrowserRouter(
      <>
       <Route path='/' element={<Intro/>} />
       <Route path='/register' element={<Register/>}/>
+      <Route path='/login' element={<Login/>}/>
      </>
     
   )

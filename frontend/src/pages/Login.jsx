@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 
-function Register() {
+
+function Login() {
  const [role, setRole] = useState("student");
  const [showPassword, setShowPassword] = useState(false);
 
@@ -28,7 +29,7 @@ function Register() {
       <div className="flex w-full lg:w-1/2 justify-center items-center bg-gray-50 p-8">
         <div className="w-full max-w-md">
           <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-            Create Account
+            Sing in
           </h2>
 
           {/* Role Selector */}
@@ -53,8 +54,6 @@ function Register() {
             {role === "student" && (
               <>
                 <input className={inputStyle} placeholder="Enrollment No." />
-                <input className={inputStyle} placeholder="Full Name" />
-                <input className={inputStyle} placeholder="Email" />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -76,7 +75,6 @@ function Register() {
             {/* COMPANY */}
             {role === "company" && (
               <>
-                <input className={inputStyle} placeholder="Company Name" />
                 <input className={inputStyle} placeholder="Email" />
                 <div className="relative">
                   <input
@@ -99,7 +97,7 @@ function Register() {
             {/* ADMIN */}
             {role === "admin" && (
               <>
-                <input className={inputStyle} placeholder="Username" />
+                <input className={inputStyle} placeholder="Email" />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -137,4 +135,4 @@ function Register() {
     </div>
   );
 }
-export default Register
+export default Login
