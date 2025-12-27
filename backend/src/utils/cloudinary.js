@@ -1,4 +1,4 @@
-import {v2 as cloudinary} from '@cloudinary/url-gen';
+import {v2 as cloudinary} from 'cloudinary';
 import fs from 'fs';
 
  cloudinary.config({ 
@@ -24,3 +24,5 @@ import fs from 'fs';
               console.error('Error uploading to Cloudinary:', error);   
         }
     }
+
+    export {uploadoncloudinary};
