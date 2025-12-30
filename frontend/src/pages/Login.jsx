@@ -29,7 +29,7 @@ function Login() {
       <div className="flex w-full lg:w-1/2 justify-center items-center bg-gray-50 p-8">
         <div className="w-full max-w-md">
           <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-            Sing in
+            Sign in
           </h2>
 
           {/* Role Selector */}
@@ -125,9 +125,9 @@ function Login() {
           </form>
 
           <p className="text-center text-gray-500 mt-4">
-            Already have an account?{" "}
-            <a href="/login" className="text-blue-800 font-medium hover:underline">
-              Login
+            Don't have an account?{" "}
+            <a href="/register" className="text-blue-800 font-medium hover:underline">
+              Register
             </a>
           </p>
         </div>
