@@ -1,12 +1,84 @@
  import React from 'react'
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { registerUser } from '../services/api.js';
 
 function Register() {
  const [role, setRole] = useState("student");
  const [showPassword, setShowPassword] = useState(false);
+ const [loading, setLoading] = useState(false);
+ const [error, setError] = useState("");
+ const [formData, setFormData] = useState({
+   enrollmentNo: "",
+   fullName: "",
+   email: "",
+   password: "",
+   companyName: "",
+   username: ""
+ });
 
  useEffect(() => setShowPassword(false), [role]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      let dataToSend = {
+        role,
+      };
+
+      if (role === "student") {
+        dataToSend = {
+          ...dataToSend,
+          enrollmentNo: formData.enrollmentNo,
+          fullName: formData.fullName,
+          email: formData.email,
+          password: formData.password
+        };
+      } else if (role === "company") {
+        dataToSend = {
+          ...dataToSend,
+          companyName: formData.companyName,
+          email: formData.email,
+          password: formData.password
+        };
+      } else if (role === "admin") {
+        dataToSend = {
+          ...dataToSend,
+          username: formData.username,
+          password: formData.password
+        };
+      }
+
+      const response = await registerUser(dataToSend);
+      console.log("Registration successful:", response);
+      // Handle success - redirect or show message
+      alert("Registration successful!");
+      setFormData({
+        enrollmentNo: "",
+        fullName: "",
+        email: "",
+        password: "",
+        companyName: "",
+        username: ""
+      });
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const inputStyle =
     "w-full px-4 py-3 rounded-lg bg-gray-100 border-gray-300 focus:outline-none focus:ring-2 focus: ring-purple-300 transition";
@@ -15,7 +87,7 @@ function Register() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-tr from-cyan-700 to-blue-700 items-center justify-center">
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-tr from-cyan-800 to-blue-700 items-center justify-center">
         <div className="text-center text-white px-8">
           <h1 className="text-5xl font-extrabold mb-4">Let's build a career!</h1>
           <p className="text-lg">
@@ -48,18 +120,40 @@ function Register() {
             ))}
           </div>
 
-          <form className="space-y-4 bg-white p-6 rounded-xl shadow-md">
+          <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-xl shadow-md">
+            {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
             {/* STUDENT */}
             {role === "student" && (
               <>
-                <input className={inputStyle} placeholder="Enrollment No." />
-                <input className={inputStyle} placeholder="Full Name" />
-                <input className={inputStyle} placeholder="Email" />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Enrollment No."
+                  name="enrollmentNo"
+                  value={formData.enrollmentNo}
+                  onChange={handleInputChange}
+                />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Full Name"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     className={`${inputStyle} pr-14`}
                     placeholder="Password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
                   />
                   <button
                     type="button"
@@ -76,13 +170,28 @@ function Register() {
             {/* COMPANY */}
             {role === "company" && (
               <>
-                <input className={inputStyle} placeholder="Company Name" />
-                <input className={inputStyle} placeholder="Email" />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Company Name"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleInputChange}
+                />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     className={`${inputStyle} pr-14`}
                     placeholder="Password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
                   />
                   <button
                     type="button"
@@ -99,12 +208,21 @@ function Register() {
             {/* ADMIN */}
             {role === "admin" && (
               <>
-                <input className={inputStyle} placeholder="Username" />
+                <input 
+                  className={inputStyle} 
+                  placeholder="Username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     className={`${inputStyle} pr-14`}
                     placeholder="Password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
                   />
                   <button
                     type="button"
@@ -120,9 +238,10 @@ function Register() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-2xl"
+              disabled={loading}
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-2xl disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Register as {role}
+              {loading ? "Registering..." : `Register as ${role}`}
             </button>
           </form>
 

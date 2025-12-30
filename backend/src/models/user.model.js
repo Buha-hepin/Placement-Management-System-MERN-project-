@@ -1,8 +1,8 @@
-import e from "express";
-import {mongoose,Schema} from "mongoose"
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
+const { Schema } = mongoose;
 
 const userSchema = new Schema({
     username: {
@@ -26,25 +26,12 @@ const userSchema = new Schema({
         trim: true,
         index: true
     },
-    avatar:{
-        type: String,
-        required: true,
-    },
-    coverimage:{
-        type: String,
-        required: true,
-    },
+   
     password:{
         type: String,
         required: [true, "Password is required"],
         minlength: 6
     },
-    watchHistory:[
-        {
-        type: Schema.Types.ObjectId,
-        ref: "Video"
-        }
-    ],
     refreshToken: {
         type: String,
     },
