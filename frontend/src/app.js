@@ -1,35 +1,64 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// 1. Layout Import kar (Jo Sidebar handle karega)
-import CompanyLayout from './components/CompanyLayout';
+// --- IMPORTS ---
 
-// 2. Teeno Pages Import kar
+// 1. Auth Page
+import Login from './pages/Login'; // ✅ Path check kar lena (pages folder me hai na?)
+
+// 2. Company Pages & Layout
+import CompanyLayout from './components/CompanyLayout'; // ✅ Sidebar wala layout
 import CompanyDashboard from './pages/Company/CompanyDashboard';
 import PostJob from './pages/Company/PostJob';
 import CompanyProfile from './pages/Company/CompanyProfile';
 
-// Baaki pages (Login/Student wagera)
-import Login from './Login'; // Check path logic based on your folder
+// 3. Student Dashboard (Naya wala jo Tabs handle karega)
+import StudentDashboard from './pages/Student/StudentDashboard'; 
+// Note: Hame ab JobListings, MyApplications alag se import karne ki zarurat nahi hai App.js me.
+
+// App.js me upar imports add kar:
+import AdminLayout from './pages/Admin/AdminLayout';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import AllCompanies from './pages/Admin/AllCompanies';
+import AllStudents from './pages/Admin/AllStudents';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Main Login Page */}
+        
+        {/* --- 1. LOGIN PAGE (Start yahi se hoga) --- */}
         <Route path="/" element={<Login />} />
 
-        {/* --- COMPANY SECTION (Ye hai main logic) --- */}
-        {/* Jab URL '/company' hoga, toh Layout khulega */}
+
+        {/* --- 2. STUDENT SECTION --- */}
+        {/* Sirf ek route kaafi hai. StudentDashboard khud andar Tabs switch karega */}
+        <Route path="/student" element={<StudentDashboard />} />
+
+        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/admin" element={<AdminLayout />}>
+        {/* Default to Dashboard */}
+        <Route index element={<AdminDashboard />} /> 
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="companies" element={<AllCompanies />} />
+        <Route path="students" element={<AllStudents />} />
+        </Route>
+        </Route>
+  {/* Jobs wala page baad me banayenge */}
+      
+        
+
+        {/* --- 3. COMPANY SECTION (Nested Routes) --- */}
+        {/* Jab URL '/company' hoga, toh CompanyLayout (Sidebar) dikhega */}
         <Route path="/company" element={<CompanyLayout />}>
            
-           {/* Agar '/company/dashboard' hua to ye dikhega */}
+           {/* Default dashboard: /company/dashboard */}
            <Route path="dashboard" element={<CompanyDashboard />} />
            
-           {/* Agar '/company/post-job' hua to ye dikhega */}
+           {/* Job Post karna: /company/post-job */}
            <Route path="post-job" element={<PostJob />} />
            
-           {/* Agar '/company/profile' hua to ye dikhega */}
+           {/* Profile: /company/profile */}
            <Route path="profile" element={<CompanyProfile />} />
 
         </Route>
