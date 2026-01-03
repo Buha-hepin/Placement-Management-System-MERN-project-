@@ -14,11 +14,11 @@ function Login() {
   const gradientStyle ="bg-gradient-to-tr from-cyan-700 to-blue-700"
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Side */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-tr from-cyan-700 to-blue-700 items-center justify-center">
+      <div className="flex w-full p-5 lg:w-1/2 bg-gradient-to-tr from-cyan-700 to-blue-700 items-center justify-center">
         <div className="text-center text-white px-8">
-          <h1 className="text-5xl font-extrabold mb-4">Let's build a career!</h1>
+          <h1 className="text-3xl font-extrabold mb-4">Let's build a career!</h1>
           <p className="text-lg">
             Unlock opportunities, connect with top companies, and grow your career.
           </p>

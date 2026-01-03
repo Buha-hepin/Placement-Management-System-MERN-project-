@@ -1,6 +1,6 @@
  import React from 'react'
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { registerUser } from '../services/api.js';
 
 function Register() {
@@ -14,8 +14,11 @@ function Register() {
    email: "",
    password: "",
    companyName: "",
-   username: ""
+   username: "",
+    Location: ""
  });
+
+  const navigate = useNavigate();
 
  useEffect(() => setShowPassword(false), [role]);
 
@@ -43,26 +46,24 @@ function Register() {
           enrollmentNo: formData.enrollmentNo,
           fullName: formData.fullName,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          branch: "",
+          skills: [],
+          resumeUrl: "",  
         };
       } else if (role === "company") {
         dataToSend = {
           ...dataToSend,
           companyName: formData.companyName,
           email: formData.email,
-          password: formData.password
-        };
-      } else if (role === "admin") {
-        dataToSend = {
-          ...dataToSend,
-          username: formData.username,
-          password: formData.password
+          password: formData.password,
+          Location: formData.Location
         };
       }
 
       const response = await registerUser(dataToSend);
       console.log("Registration successful:", response);
-      // Handle success - redirect or show message
+      // Handle success - redirect to login page
       alert("Registration successful!");
       setFormData({
         enrollmentNo: "",
@@ -72,6 +73,7 @@ function Register() {
         companyName: "",
         username: ""
       });
+      navigate('/login');
     } catch (err) {
       console.error("Registration error:", err);
       setError(err.message || "Registration failed. Please try again.");
@@ -85,11 +87,11 @@ function Register() {
   const gradientStyle ="bg-gradient-to-tr from-cyan-700 to-blue-700"
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Side */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-tr from-cyan-800 to-blue-700 items-center justify-center">
+      <div className="w-full p-5 flex lg:w-1/2 bg-gradient-to-tr from-cyan-800 to-blue-700 items-center justify-center">
         <div className="text-center text-white px-8">
-          <h1 className="text-5xl font-extrabold mb-4">Let's build a career!</h1>
+          <h1 className="text-3xl font-extrabold mb-4">Let's build a career!</h1>
           <p className="text-lg">
             Unlock opportunities, connect with top companies, and grow your career.
           </p>
@@ -105,7 +107,7 @@ function Register() {
 
           {/* Role Selector */}
           <div className="flex justify-center gap-3 mb-6">
-            {["student", "company", "admin"].map((r) => (
+            {["student", "company"].map((r) => (
               <button
                 key={r}
                 onClick={() => setRole(r)}
@@ -184,35 +186,11 @@ function Register() {
                   value={formData.email}
                   onChange={handleInputChange}
                 />
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className={`${inputStyle} pr-14`}
-                    placeholder="Password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600 font-medium"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* ADMIN */}
-            {role === "admin" && (
-              <>
                 <input 
                   className={inputStyle} 
-                  placeholder="Username"
-                  name="username"
-                  value={formData.username}
+                  placeholder="Location"
+                  name="Location"
+                  value={formData.Location}
                   onChange={handleInputChange}
                 />
                 <div className="relative">
@@ -235,6 +213,8 @@ function Register() {
                 </div>
               </>
             )}
+
+            
 
             <button
               type="submit"
