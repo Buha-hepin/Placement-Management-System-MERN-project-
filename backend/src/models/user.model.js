@@ -68,6 +68,11 @@ userSchema.methods.IsPasswordCorrect = async function(password) {
     return await bcrypt.compare(password, this.password);
 }
 
+// Backwards-compatible method name expected by controllers
+userSchema.methods.comparePassword = async function(password) {
+    return await bcrypt.compare(password, this.password);
+} 
+
 // //genarate access token and refresh token
 // userSchema.methods.generateAccessToken = function() {
 //     return jwt.sign(

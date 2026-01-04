@@ -46,7 +46,7 @@ const router = createBrowserRouter(
       
       {/* Student Route */}
       <Route path="/student" element={<StudentDashboard/>} />
-
+      
       {/* --- COMPANY ROUTES --- */}
       <Route path="/company" element={<CompanyLayout/>}>
           <Route path="dashboard" element={<CompanyDashboard/>} />

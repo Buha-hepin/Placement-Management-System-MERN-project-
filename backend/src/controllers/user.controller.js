@@ -9,75 +9,136 @@ import{ apiResponse } from "../utils/apiResponse.js";
  export const registerUser = asyncHandler(async(req,res)=>{
     const {role} = req.body;
 
-    if(role==="student"){
+    if (role === "student") {
         try {
-            const {enrollmentNo,fullName,email,password,branch,skills,resumeUrl} = req.body;
-        if ([enrollmentNo, fullName, email, password].some((field) => field?.trim() === "")) {
-            throw new apierror(400, "All fields are required");
-        }
-        const existedUser = await User.findOne({
-            $or:[{enrollmentNo},{email}]
-        })  
+            const { enrollmentNo, fullName, email, password, branch, skills, resumeUrl } = req.body;
 
-        if(existedUser){
-            throw new apierror(400,"User already exists");
-            alert("User already exists");
-        }   
-        const user = await User.create({
-            enrollmentNo,
-            fullname:fullName,
-            email,
-            password,
-            branch,
-            skills,
-            resumeUrl
-        });
+            // Ensure required fields are present and non-empty
+            if (![enrollmentNo, fullName, email, password].every(field => typeof field === 'string' && field.trim().length > 0)) {
+                throw new apierror(400, "All fields are required");
+            }
 
-        const createdUser = await User.findById(user._id).select("-password -refreshToken");
-        if (!createdUser) {
-            throw new apierror(500, "User creation failed");
-        }
-        return res.status(201).json(
-            new apiResponse(201, createdUser, "Student registered successfully")
-        )
+            // Check for existing user
+            const existedUser = await User.findOne({ $or: [{ enrollmentNo }, { email }] });
+            if (existedUser) {
+                throw new apierror(400, "User already exists");
+            }
+
+            const user = await User.create({
+                enrollmentNo,
+                fullname: fullName,
+                email,
+                password,
+                branch,
+                skills,
+                resumeUrl
+            });
+
+            const createdUser = await User.findById(user._id).select("-password -refreshToken");
+            if (!createdUser) {
+                throw new apierror(500, "User creation failed");
+            }
+
+            return res.status(201).json(new apiResponse(201, createdUser, "Student registered successfully"));
         } catch (error) {
-            throw new apierror(500, "user controller error");
+            // Mongo duplicate key
+            if (error && error.code === 11000) {
+                const key = Object.keys(error.keyValue || {})[0] || 'field';
+                throw new apierror(400, `${key} already exists`);
+            }
+            if (error instanceof apierror) throw error;
+            console.error('registerUser (student) error:', error);
+            throw new apierror(500, error.message || "User controller error");
         }
     }
 
-    if(role==="company"){
-        const {companyName,email,password,Location} = req.body;
-        if ([companyName, email, password].some((field) => field?.trim() === "")) {
-            throw new apierror(400, "All fields are required");
+    if (role === "company") {
+        try {
+            const { companyName, email, password, Location } = req.body;
+
+            if (![companyName, email, password].every(field => typeof field === 'string' && field.trim().length > 0)) {
+                throw new apierror(400, "All fields are required");
+            }
+
+            const existedUser = await Company.findOne({ $or: [{ companyName }, { email }] });
+            if (existedUser) {
+                throw new apierror(400, "Company already exists");
+            }
+
+            const user = await Company.create({
+                companyName,
+                email,
+                password,
+                location: Location
+            });
+
+            const createdUser = await Company.findById(user._id).select("-password -refreshToken");
+            if (!createdUser) {
+                throw new apierror(500, "Company creation failed");
+            }
+
+            return res.status(201).json(new apiResponse(201, createdUser, "Company registered successfully"));
+        } catch (error) {
+            if (error && error.code === 11000) {
+                const key = Object.keys(error.keyValue || {})[0] || 'field';
+                throw new apierror(400, `${key} already exists`);
+            }
+            if (error instanceof apierror) throw error;
+            console.error('registerUser (company) error:', error);
+            throw new apierror(500, error.message || "Company controller error");
         }
-
-        const existedUser = await Company.findOne({
-            $or:[{companyName},{email}]
-        })      
-
-        if(existedUser){
-            throw new apierror(400,"Company already exists");
-            alert("Company already exists");
-        }   
-
-        const user = await Company.create({
-            companyName,
-            email,
-            password,
-            location:Location
-        });
-
-        const createdUser = await Company.findById(user._id).select("-password -refreshToken");
-        if (!createdUser) {
-            throw new apierror(500, "Company creation failed");
-        }   
-
-        return res.status(201).json(
-            new apiResponse(201, createdUser, "Company registered successfully")
-        )
     }
     
 
 })
 
+export const loginUser = asyncHandler(async(req,res)=>{
+    const {role} = req.body;    
 
+    if(role==="student"){
+        const {enrollmentNo,password} = req.body;
+        if ([enrollmentNo, password].some((field) => field?.trim() === "")) {
+            throw new apierror(400, "All fields are required");
+        }   
+
+        const user = await User.findOne({enrollmentNo});
+        if(!user || !(await user.comparePassword(password))){
+            throw new apierror(401,"Invalid enrollment number or password");
+        }
+
+        const userData = await User.findById(user._id).select("-password -refreshToken");
+        return res.status(200).json(
+            new apiResponse(200,userData,"Student logged in successfully")
+        )
+    }
+    if(role==="company"){
+        const {email,password} = req.body;  
+        if ([email, password].some((field) => field?.trim() === "")) {
+            throw new apierror(400, "All fields are required");
+        }   
+
+        const company = await Company.findOne({email});
+        if(!company || !(await company.comparePassword(password))){
+            throw new apierror(401,"Invalid email or password");
+        }
+        const companyData = await Company.findById(company._id).select("-password -refreshToken");
+        return res.status(200).json(
+            new apiResponse(200,companyData,"Company logged in successfully")
+        )
+    }
+    if(role==="admin"){
+        const {email,password} = req.body;  
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        if(email!==adminEmail || password!==adminPassword){
+            throw new apierror(401,"Invalid admin credentials");
+        }
+        const adminData = {
+            email:adminEmail,
+            role:"admin"    
+        };
+        return res.status(200).json(
+            new apiResponse(200,adminData,"Admin logged in successfully")
+        )
+    }
+})
