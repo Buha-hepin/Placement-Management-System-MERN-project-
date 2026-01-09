@@ -21,7 +21,7 @@ const StudentProfile = () => {
                 <p className="text-blue-600 font-medium">B.Tech - Information Technology</p>
               </div>
             </div>
-            <button className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition shadow-sm">
+            <button  className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition shadow-sm">
               <Edit2 size={16}/> Edit Profile
             </button>
           </div>
