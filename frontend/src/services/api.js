@@ -31,7 +31,9 @@ export async function registerUser(payload) {
 }
 
 export async function loginUser(payload) {
+  console.log('loginUser payload:', payload);
   const url = `${BASE_URL}/api/v1/users/login`;
+
 
   const res = await fetch(url, {
     method: 'POST',
@@ -41,7 +43,8 @@ export async function loginUser(payload) {
     body: JSON.stringify(payload),
     credentials: 'include'
   });
-
+  
+ 
   let data;
   try {
     data = await res.json();

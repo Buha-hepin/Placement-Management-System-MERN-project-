@@ -54,12 +54,8 @@ const router = createBrowserRouter(
           <Route path="profile" element={<CompanyProfile/>} />
           <Route path="applicants" element={<CompanyApplicants/>} />
       </Route>
-
-      {/* --- ✅ ADMIN ROUTES (Fixed Structure) --- */}
-      {/* Isko open-close tag banaya taaki andar pages aa sakein */}
+      {/* --- ADMIN ROUTES --- */}
       <Route path="/admin" element={<AdminLayout/>}>
-          
-          {/* Default: Agar koi '/admin' khule to Dashboard dikhe */}
           <Route index element={<AdminDashboard/>} /> 
           
           <Route path="dashboard" element={<AdminDashboard/>} />

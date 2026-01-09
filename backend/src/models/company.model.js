@@ -19,6 +19,7 @@ const companySchema = new Schema({
         trim: true,
         index: true
     },
+    
    
     password:{
         type: String,

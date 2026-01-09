@@ -88,8 +88,6 @@ import{ apiResponse } from "../utils/apiResponse.js";
             throw new apierror(500, error.message || "Company controller error");
         }
     }
-    
-
 })
 
 export const loginUser = asyncHandler(async(req,res)=>{
@@ -128,10 +126,12 @@ export const loginUser = asyncHandler(async(req,res)=>{
     }
     if(role==="admin"){
         const {email,password} = req.body;  
+        console.log('Admin login attempt with email:', email);
+        console.log('Admin login attempt with password:', password);
         const adminEmail = process.env.ADMIN_EMAIL;
         const adminPassword = process.env.ADMIN_PASSWORD;
         if(email!==adminEmail || password!==adminPassword){
-            throw new apierror(401,"Invalid admin credentials");
+            throw new apierror(401,"we are not getting your credentials right plaease try again");
         }
         const adminData = {
             email:adminEmail,
@@ -142,3 +142,4 @@ export const loginUser = asyncHandler(async(req,res)=>{
         )
     }
 })
+
