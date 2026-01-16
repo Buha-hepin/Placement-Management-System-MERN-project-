@@ -39,6 +39,8 @@ import{ apiResponse } from "../utils/apiResponse.js";
                 throw new apierror(500, "User creation failed");
             }
 
+            
+
             return res.status(201).json(new apiResponse(201, createdUser, "Student registered successfully"));
         } catch (error) {
             // Mongo duplicate key
@@ -60,24 +62,26 @@ import{ apiResponse } from "../utils/apiResponse.js";
                 throw new apierror(400, "All fields are required");
             }
 
-            const existedUser = await Company.findOne({ $or: [{ companyName }, { email }] });
-            if (existedUser) {
+            const existedCompany = await Company.findOne({ $or: [{ companyName }, { email }] });
+            if (existedCompany) {
                 throw new apierror(400, "Company already exists");
             }
 
-            const user = await Company.create({
+            const company = await Company.create({
                 companyName,
                 email,
                 password,
                 location: Location
             });
 
-            const createdUser = await Company.findById(user._id).select("-password -refreshToken");
-            if (!createdUser) {
+            const createdCompany = await Company.findById(company._id).select("-password -refreshToken");
+            if (!createdCompany) {
                 throw new apierror(500, "Company creation failed");
             }
 
-            return res.status(201).json(new apiResponse(201, createdUser, "Company registered successfully"));
+            
+
+            return res.status(201).json(new apiResponse(201, createdCompany, "Company registered successfully"));
         } catch (error) {
             if (error && error.code === 11000) {
                 const key = Object.keys(error.keyValue || {})[0] || 'field';
@@ -91,7 +95,7 @@ import{ apiResponse } from "../utils/apiResponse.js";
 })
 
 export const loginUser = asyncHandler(async(req,res)=>{
-    const {role} = req.body;    
+    const {role} = req.body;  
 
     if(role==="student"){
         const {enrollmentNo,password} = req.body;
@@ -105,6 +109,7 @@ export const loginUser = asyncHandler(async(req,res)=>{
         }
 
         const userData = await User.findById(user._id).select("-password -refreshToken");
+
         return res.status(200).json(
             new apiResponse(200,userData,"Student logged in successfully")
         )
@@ -120,6 +125,9 @@ export const loginUser = asyncHandler(async(req,res)=>{
             throw new apierror(401,"Invalid email or password");
         }
         const companyData = await Company.findById(company._id).select("-password -refreshToken");
+
+        
+
         return res.status(200).json(
             new apiResponse(200,companyData,"Company logged in successfully")
         )

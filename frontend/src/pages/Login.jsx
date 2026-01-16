@@ -44,8 +44,11 @@ function Login() {
           }
         }
 
+
+        
       const response = await loginUser(dataToSend);
       console.log('Login success', response);
+      localStorage.setItem('userId', response.data._id);
 
       // Navigate based on role
       if (role === 'student') navigate('/Student');

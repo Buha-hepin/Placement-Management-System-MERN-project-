@@ -43,6 +43,10 @@ export async function loginUser(payload) {
     body: JSON.stringify(payload),
     credentials: 'include'
   });
+
+  
+  // Store user role in localStorage id store by the login.jsx(51)
+  localStorage.setItem('userRole', payload.role);
   
  
   let data;
