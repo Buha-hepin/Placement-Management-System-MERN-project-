@@ -1,8 +1,46 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { User } from "./user.model.js"; 
 
 const { Schema } = mongoose;
+
+const jobPostingsSchema = new Schema({
+    jobRole: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    location: {
+        type: String,
+        required: true, 
+    },
+    salaryPackage: {
+        type:String,
+        required: true,
+    },
+    jobtype: {
+        type: String,
+        enum: ['Full-time', 'Contract', 'Internship', ],
+        required: true,
+    },
+    description:{
+        type: String,
+        required: true,
+    },
+    
+    status :{
+        type:String,
+        enum:['draft','pending','publish'],
+        default:false,
+    },
+    applicants: [
+        {
+           type: Schema.Types.ObjectId,
+           ref: "User",
+        } 
+    ],  
+});
 
 const companySchema = new Schema({
     email: {
@@ -19,6 +57,7 @@ const companySchema = new Schema({
         trim: true,
         index: true
     },
+    
    
     password:{
         type: String,
@@ -29,7 +68,18 @@ const companySchema = new Schema({
     location:{
         type: String,
     },
-    
+    jobPostings: [
+        {
+           type: Schema.Types.ObjectId,
+           ref: "Job",
+        } 
+    ],
+
+    about:{
+        type: String,
+        default: "",
+    },
+
     refreshToken: {
         type: String,
     },
@@ -83,3 +133,4 @@ companySchema.methods.generateRefreshToken = function() {
 }
 
 export const Company = mongoose.model("Company", companySchema); 
+export const Job = mongoose.model("Job", jobPostingsSchema);  

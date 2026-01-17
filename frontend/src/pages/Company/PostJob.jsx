@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiSave, FiSend, FiMapPin, FiDollarSign, FiBell } from 'react-icons/fi';
 
 export default function PostJob() {
-  const [jobDetails, setJobDetails] = useState({
-    companyName: 'Google India', role: '', description: '', salary: '', location: '', type: 'Full Time', deadline: ''
+  let [jobDetails, setJobDetails] = useState({
+    // companyName: 'Google India', role: '', description: '', salary: '', location: '', type: 'Full Time', deadline: ''
   });
   
   const [isPublishToggleOn, setIsPublishToggleOn] = useState(false); 
@@ -12,11 +12,87 @@ export default function PostJob() {
 
   const handleInputChange = (e) => setJobDetails({ ...jobDetails, [e.target.name]: e.target.value });
   
-  const handlePublishSubmit = () => {
-    // Yahan Backend API call aayega
-    setShowPublishModal(false); 
-    alert("✅ Job Published Successfully!");
-  };
+ 
+  const handleDraftSubmit =()=>{
+    jobDetails = {
+      ...jobDetails,
+      status: 'draft'
+    }
+
+  
+    const draftSubmit = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      console.log(jobDetails)
+
+      if (!userId) return;
+
+      const response = await fetch(
+        `http://localhost:8000/api/v1/users/postjob/${userId}`,
+        {
+          method: "post",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(jobDetails),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to send job data");
+      }
+
+      const data = await response.json();
+      console.log("Updated job:", data);
+      alert("job post successfully as a draft!");
+
+    } catch (error) {
+      console.error("Error updating job posting:", error);
+    }
+    }; 
+    draftSubmit() 
+
+  }
+
+  const handlepublishSubmit =()=>{
+    jobDetails = {
+      ...jobDetails,
+      status: 'pending'
+    }
+
+  
+    const PublishSubmit = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+
+      if (!userId) return;
+
+      const response = await fetch(
+        `http://localhost:8000/api/v1/users/postjob/${userId}`,
+        {
+          method: "post",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(jobDetails),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to send job data");
+      }
+
+      const data = await response.json();
+      console.log("Updated job:", data);
+      alert("job posting successfully!");
+
+    } catch (error) {
+      console.error("Error updating job posting:", error);
+    }
+  };  
+    PublishSubmit();  
+  }
+
 
   return (
     <div className="animate-fade-in">
@@ -28,25 +104,25 @@ export default function PostJob() {
         <div className="xl:col-span-2 space-y-6">
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <InputGroup label="Job Role / Title" name="role" value={jobDetails.role} onChange={handleInputChange} placeholder="e.g. Senior Software Engineer" />
+              <InputGroup label="Job Role / Title" name="jobRole" value={jobDetails.jobrole} onChange={handleInputChange} placeholder="e.g. Senior Software Engineer" />
               <InputGroup label="Location" name="location" value={jobDetails.location} onChange={handleInputChange} placeholder="e.g. Bangalore" icon={<FiMapPin />} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-               <InputGroup label="Salary Package" name="salary" value={jobDetails.salary} onChange={handleInputChange} placeholder="e.g. 18 - 24 LPA" icon={<FiDollarSign />} />
+               <InputGroup label="SalaryPackage" name="salaryPackage" value={jobDetails.salaryPackage} onChange={handleInputChange} placeholder="e.g. 18 - 24 LPA" icon={<FiDollarSign />} />
                <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Job Type</label>
                   <div className="grid grid-cols-3 gap-2 md:gap-3">
-                    {['Full Time', 'Internship', 'Contract'].map((type) => (
-                      <button key={type} onClick={() => setJobDetails({...jobDetails, type: type})} className={`py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all border ${jobDetails.type === type ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500'}`}>{type}</button>
+                    {['Full-time', 'Internship', 'Contract'].map((type) => (
+                      <button key={type} onClick={() => setJobDetails({...jobDetails, jobtype: type})} className={`py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all border ${jobDetails.jobtype === type ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-500'}`}>{type}</button>
                     ))}
                   </div>
-               </div>
+               </div>                                   
             </div>
             <textarea name="description" value={jobDetails.description} onChange={handleInputChange} rows="4" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Job Description..."></textarea>
           </section>
           
           <div className="flex flex-col md:flex-row gap-4">
-             <button className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
+             <button onClick={handleDraftSubmit} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
                <FiSave /> Save as Draft
              </button>
              <button onClick={() => {setShowPublishModal(true); setAlertMessage(`Opening: ${jobDetails.role} at ${jobDetails.companyName}`);}} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2">
@@ -72,10 +148,9 @@ export default function PostJob() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 text-center">
             <div className="mx-auto w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4"><FiBell className="text-3xl"/></div>
             <h3 className="text-xl font-bold mb-2">Publish Job?</h3>
-            <textarea value={alertMessage} onChange={(e) => setAlertMessage(e.target.value)} className="w-full p-3 border rounded-xl mb-6 text-sm bg-gray-50" rows="3"></textarea>
             <div className="flex gap-3">
                <button onClick={() => setShowPublishModal(false)} className="flex-1 py-2.5 border rounded-xl font-semibold hover:bg-gray-50">Cancel</button>
-               <button onClick={handlePublishSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Confirm</button>
+               <button onClick={handlepublishSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Confirm</button>
             </div>
           </div>
         </div>
@@ -93,3 +168,5 @@ const InputGroup = ({ label, name, value, onChange, placeholder, icon }) => (
     </div>
   </div>
 );
+
+
