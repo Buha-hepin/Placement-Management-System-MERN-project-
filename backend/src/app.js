@@ -7,6 +7,7 @@ dotenv.config();
 
 const app = express()
 
+// Allowed frontend origins for CORS
 const allowedOrigins = ["http://localhost:5173", "http://localhost:8000"];
 
 app.use(
@@ -39,12 +40,17 @@ app.use(express.urlencoded({ extended: true }));
 //routes import
 import userRouter from "./routes/user.routes.js"
 import jobRouter from "./routes/job.routes.js"
+import companyRouter from "./routes/company.routes.js"
 import { apiResponse } from "./utils/apiResponse.js"
 
 
-//routes declaration
+// routes declaration
+// User auth + student profile
 app.use("/api/v1/users", userRouter)
+// Jobs: student browse/apply, company/admin actions
 app.use("/api/v1/jobs", jobRouter)
+// Company profile + company jobs
+app.use("/api/v1/companies", companyRouter)
 
 // Global error handler
 app.use((err, req, res, next) => {

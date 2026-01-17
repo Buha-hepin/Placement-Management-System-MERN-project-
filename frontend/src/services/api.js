@@ -1,3 +1,4 @@
+// API service layer: wraps fetch calls with consistent error handling
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export async function registerUser(payload) {
@@ -257,6 +258,118 @@ export async function getStudentApplications(studentId) {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get jobs posted by company
+export async function getCompanyJobs(companyId) {
+  const url = `${BASE_URL}/api/v1/companies/${companyId}/jobs`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get applicants for a specific job
+export async function getJobApplicants(jobId) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Update applicant status (company)
+export async function updateApplicantStatus(jobId, applicationId, status) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants/${applicationId}/status`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Create/Post Job (Company)
+export async function createJob(jobData) {
+  const url = `${BASE_URL}/api/v1/jobs/create`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(jobData),
     credentials: 'include'
   });
 

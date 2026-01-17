@@ -1,3 +1,4 @@
+// User controller: student/company/admin auth and student profile ops
 import { asyncHandler } from "../utils/asynchandler.js";
 import{apierror} from "../utils/apierror.js";
 import { User } from "../models/user.model.js";
@@ -6,7 +7,9 @@ import { uploadoncloudinary } from "../utils/cloudinary.js";
 import{ apiResponse } from "../utils/apiResponse.js";   
 
 
- export const registerUser = asyncHandler(async(req,res)=>{
+// Register user
+// role === 'student' or 'company' determines which model to use
+export const registerUser = asyncHandler(async(req,res)=>{
     const {role} = req.body;
 
     if (role === "student") {
@@ -92,6 +95,8 @@ import{ apiResponse } from "../utils/apiResponse.js";
 
 })
 
+// Login user
+// Supports student/company/admin; returns sanitized user/admin data
 export const loginUser = asyncHandler(async(req,res)=>{
     const {role} = req.body;    
 
@@ -190,7 +195,7 @@ export const updateStudentProfile = asyncHandler(async(req,res)=>{
     );
 })
 
-// Update student skills
+// Update student skills (array)
 export const updateStudentSkills = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
     const { skills } = req.body;
@@ -219,6 +224,7 @@ export const updateStudentSkills = asyncHandler(async(req,res)=>{
 })
 
 // Upload resume
+// Uses Cloudinary; saves resumeUrl on student; deletes local temp file in utils
 export const uploadResume = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
 
@@ -241,7 +247,7 @@ export const uploadResume = asyncHandler(async(req,res)=>{
         throw new apierror(500, "Failed to upload resume");
     }
 
-    student.resumeUrl = resumeUrl;
+    student.resumeUrl = resumeUrl.url;
     await student.save();
 
     const updatedStudent = await User.findById(studentId).select("-password -refreshToken");

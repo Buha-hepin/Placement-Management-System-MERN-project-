@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api.js';
 
+// Login: role-based (student/company/admin); stores IDs in localStorage
 function Login() {
   const [role, setRole] = useState("student");
   const [showPassword, setShowPassword] = useState(false);

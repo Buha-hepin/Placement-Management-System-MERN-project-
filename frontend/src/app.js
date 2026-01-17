@@ -11,6 +11,7 @@ import CompanyLayout from './components/CompanyLayout'; // ✅ Sidebar wala layo
 import CompanyDashboard from './pages/Company/CompanyDashboard';
 import PostJob from './pages/Company/PostJob';
 import CompanyProfile from './pages/Company/CompanyProfile';
+import CompanyApplicants from './pages/Company/CompanyApplicants';
 
 // 3. Student Dashboard (Naya wala jo Tabs handle karega)
 import StudentDashboard from './pages/Student/StudentDashboard'; 
@@ -58,6 +59,12 @@ function App() {
            {/* Job Post karna: /company/post-job */}
            <Route path="post-job" element={<PostJob />} />
            
+            {/* Applicants: /company/applicants/:jobId? */}
+            <Route path="applicants">
+             <Route path=":jobId" element={<CompanyApplicants />} />
+             <Route index element={<CompanyApplicants />} />
+            </Route>
+
            {/* Profile: /company/profile */}
            <Route path="profile" element={<CompanyProfile />} />
 
