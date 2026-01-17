@@ -32,7 +32,9 @@ export async function registerUser(payload) {
 }
 
 export async function loginUser(payload) {
+  console.log('loginUser payload:', payload);
   const url = `${BASE_URL}/api/v1/users/login`;
+
 
   const res = await fetch(url, {
     method: 'POST',
@@ -43,6 +45,11 @@ export async function loginUser(payload) {
     credentials: 'include'
   });
 
+  
+  // Store user role in localStorage id store by the login.jsx(51)
+  localStorage.setItem('userRole', payload.role);
+  
+ 
   let data;
   try {
     data = await res.json();

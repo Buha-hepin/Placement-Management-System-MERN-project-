@@ -2,6 +2,8 @@ import React from 'react'
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api.js';
+const ADMIN_EMAIL ='admin@gmail.com';
+const ADMIN_PASSWORD ='Admin123';
 
 // Login: role-based (student/company/admin); stores IDs in localStorage
 function Login() {
@@ -37,12 +39,17 @@ function Login() {
         dataToSend = { ...dataToSend, enrollmentNo: formData.enrollmentNo, password: formData.password };
       } else if (role === 'company') {
         dataToSend = { ...dataToSend, email: formData.email, password: formData.password };
-      } else {
-        dataToSend = { ...dataToSend, email: formData.email, password: formData.password };
-      }
+      } else if (role === 'admin') {
+          if(formData.email == `${ADMIN_EMAIL}` && formData.password == `${ADMIN_PASSWORD}`){
+            navigate('/Admin/dashboard');
+          }
+        }
 
+
+        
       const response = await loginUser(dataToSend);
       console.log('Login success', response);
+      localStorage.setItem('userId', response.data._id);
 
       // Store user data in localStorage
       if (role === 'student' && response.data._id) {
@@ -56,7 +63,6 @@ function Login() {
       // Navigate based on role
       if (role === 'student') navigate('/Student');
       else if (role === 'company') navigate('/Company/Dashboard');
-      else navigate('/Admin/AdminDashboard');
     } catch (err) {
       console.error('Login error', err);
       setError(err.message || 'Login failed. Please try again.');
@@ -85,7 +91,7 @@ function Login() {
 
           {/* Role Selector */}
           <div className="flex justify-center gap-3 mb-6">
-            {["student", "company"].map((r) => (
+            {["student", "company", "admin"].map((r) => (
               <button
                 key={r}
                 onClick={() => setRole(r)}
@@ -163,11 +169,42 @@ function Login() {
               </>
             )}
 
+            {/* ADMIN */}
+            {role === "admin" && (
+              <>
+                <input
+                  className={inputStyle}
+                  placeholder="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className={`${inputStyle} pr-14`}
+                    placeholder="Password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-600 font-medium"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-2xl disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
+              className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-2xl disabled:bg-gray-400 disabled:cursor-not-allowed">
+                
               {loading ? 'Signing in...' : `Sign in as ${role}`}
             </button>
           </form>

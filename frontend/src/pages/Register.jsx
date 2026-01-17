@@ -57,7 +57,9 @@ function Register() {
           companyName: formData.companyName,
           email: formData.email,
           password: formData.password,
-          Location: formData.Location
+          Location: formData.Location,
+          jobPostings: [],
+          about: " write the about section",
         };
       }
 

@@ -114,7 +114,7 @@ export default function StudentDashboard() {
       )}    
 
       {/* SIDEBAR */}
-      <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-gradient-to-tr from-cyan-700 to-blue-700 text-white transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}>
+      <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-gradient-to-tr from-cyan-700 to-blue-700 text-white rounded-tr-2xl rounded-br-2xl  transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col`}>
         <div className="p-6 flex justify-between items-center">
           <h2 className="text-2xl font-bold">Student Portal</h2>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/80">✕</button>
@@ -148,8 +148,6 @@ export default function StudentDashboard() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          
-          {/* --- YAHAN HUM COMPONENT SWITCH KAR RAHE HAIN --- */}
           
           {activeTab === 'jobs' && (
             <JobListings 
