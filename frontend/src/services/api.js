@@ -57,3 +57,221 @@ export async function loginUser(payload) {
 
   return data;
 }
+
+// Student Profile APIs
+export async function getStudentProfile(studentId) {
+  const url = `${BASE_URL}/api/v1/users/student/${studentId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function updateStudentProfile(studentId, payload) {
+  const url = `${BASE_URL}/api/v1/users/student/${studentId}`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function updateStudentSkills(studentId, skills) {
+  const url = `${BASE_URL}/api/v1/users/student/${studentId}/skills`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ skills }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function uploadResume(studentId, formData) {
+  const url = `${BASE_URL}/api/v1/users/student/${studentId}/resume`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+// Job APIs
+export async function getAllApprovedJobs(page = 1, limit = 10, search = "", location = "", jobType = "") {
+  const url = `${BASE_URL}/api/v1/jobs/browse?page=${page}&limit=${limit}&search=${search}&location=${location}&jobType=${jobType}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getJobDetails(jobId) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function applyForJob(jobId, studentId) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/apply`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ studentId }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getStudentApplications(studentId) {
+  const url = `${BASE_URL}/api/v1/jobs/student/${studentId}/applications`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}

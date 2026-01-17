@@ -142,3 +142,111 @@ export const loginUser = asyncHandler(async(req,res)=>{
         )
     }
 })
+
+// Get student profile by ID
+export const getStudentProfile = asyncHandler(async(req,res)=>{
+    const { studentId } = req.params;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    const student = await User.findById(studentId).select("-password -refreshToken");
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, student, "Student profile retrieved successfully")
+    );
+})
+
+// Update student profile
+export const updateStudentProfile = asyncHandler(async(req,res)=>{
+    const { studentId } = req.params;
+    const { fullname, email, branch, cgpa, phone } = req.body;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    // Update only provided fields
+    if (fullname) student.fullname = fullname;
+    if (email) student.email = email;
+    if (branch) student.branch = branch;
+    if (cgpa) student.cgpa = cgpa;
+    if (phone) student.phone = phone;
+
+    const updatedStudent = await student.save();
+    const profileData = await User.findById(updatedStudent._id).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new apiResponse(200, profileData, "Student profile updated successfully")
+    );
+})
+
+// Update student skills
+export const updateStudentSkills = asyncHandler(async(req,res)=>{
+    const { studentId } = req.params;
+    const { skills } = req.body;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    if (!skills || !Array.isArray(skills)) {
+        throw new apierror(400, "Skills must be an array");
+    }
+
+    const student = await User.findByIdAndUpdate(
+        studentId,
+        { skills },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, student, "Student skills updated successfully")
+    );
+})
+
+// Upload resume
+export const uploadResume = asyncHandler(async(req,res)=>{
+    const { studentId } = req.params;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    if (!req.file) {
+        throw new apierror(400, "No file uploaded");
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    // Upload to cloudinary
+    const resumeUrl = await uploadoncloudinary(req.file.path);
+    if (!resumeUrl) {
+        throw new apierror(500, "Failed to upload resume");
+    }
+
+    student.resumeUrl = resumeUrl;
+    await student.save();
+
+    const updatedStudent = await User.findById(studentId).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new apiResponse(200, updatedStudent, "Resume uploaded successfully")
+    );
+})
