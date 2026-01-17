@@ -1,12 +1,16 @@
+// User controller: student/company/admin auth and student profile ops
 import { asyncHandler } from "../utils/asynchandler.js";
-import { apierror } from "../utils/apierror.js";
+import{apierror} from "../utils/apierror.js";
 import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { uploadoncloudinary } from "../utils/cloudinary.js";
-import { apiResponse } from "../utils/apiResponse.js";
+import{ apiResponse } from "../utils/apiResponse.js";   
 
-export const registerUser = asyncHandler(async(req, res) => {
-    const { role } = req.body;
+
+// Register user
+// role === 'student' or 'company' determines which model to use
+export const registerUser = asyncHandler(async(req,res)=>{
+    const {role} = req.body;
 
     if (role === "student") {
         try {
@@ -59,24 +63,24 @@ export const registerUser = asyncHandler(async(req, res) => {
                 throw new apierror(400, "All fields are required");
             }
 
-            const existedCompany = await Company.findOne({ $or: [{ companyName }, { email }] });
-            if (existedCompany) {
+            const existedUser = await Company.findOne({ $or: [{ companyName }, { email }] });
+            if (existedUser) {
                 throw new apierror(400, "Company already exists");
             }
 
-            const company = await Company.create({
+            const user = await Company.create({
                 companyName,
                 email,
                 password,
                 location: Location
             });
 
-            const createdCompany = await Company.findById(company._id).select("-password -refreshToken");
-            if (!createdCompany) {
+            const createdUser = await Company.findById(user._id).select("-password -refreshToken");
+            if (!createdUser) {
                 throw new apierror(500, "Company creation failed");
             }
 
-            return res.status(201).json(new apiResponse(201, createdCompany, "Company registered successfully"));
+            return res.status(201).json(new apiResponse(201, createdUser, "Company registered successfully"));
         } catch (error) {
             if (error && error.code === 11000) {
                 const key = Object.keys(error.keyValue || {})[0] || 'field';
@@ -87,67 +91,65 @@ export const registerUser = asyncHandler(async(req, res) => {
             throw new apierror(500, error.message || "Company controller error");
         }
     }
+    
+
 })
 
-export const loginUser = asyncHandler(async(req, res) => {
-    const { role } = req.body;
+// Login user
+// Supports student/company/admin; returns sanitized user/admin data
+export const loginUser = asyncHandler(async(req,res)=>{
+    const {role} = req.body;    
 
-    if (role === "student") {
-        const { enrollmentNo, password } = req.body;
+    if(role==="student"){
+        const {enrollmentNo,password} = req.body;
         if ([enrollmentNo, password].some((field) => field?.trim() === "")) {
             throw new apierror(400, "All fields are required");
-        }
+        }   
 
-        const user = await User.findOne({ enrollmentNo });
-        if (!user || !(await user.comparePassword(password))) {
-            throw new apierror(401, "Invalid enrollment number or password");
+        const user = await User.findOne({enrollmentNo});
+        if(!user || !(await user.comparePassword(password))){
+            throw new apierror(401,"Invalid enrollment number or password");
         }
 
         const userData = await User.findById(user._id).select("-password -refreshToken");
-
         return res.status(200).json(
-            new apiResponse(200, userData, "Student logged in successfully")
+            new apiResponse(200,userData,"Student logged in successfully")
         )
     }
-    if (role === "company") {
-        const { email, password } = req.body;
+    if(role==="company"){
+        const {email,password} = req.body;  
         if ([email, password].some((field) => field?.trim() === "")) {
             throw new apierror(400, "All fields are required");
-        }
+        }   
 
-        const company = await Company.findOne({ email });
-        if (!company || !(await company.comparePassword(password))) {
-            throw new apierror(401, "Invalid email or password");
+        const company = await Company.findOne({email});
+        if(!company || !(await company.comparePassword(password))){
+            throw new apierror(401,"Invalid email or password");
         }
         const companyData = await Company.findById(company._id).select("-password -refreshToken");
-
         return res.status(200).json(
-            new apiResponse(200, companyData, "Company logged in successfully")
+            new apiResponse(200,companyData,"Company logged in successfully")
         )
     }
-    if (role === "admin") {
-        const { email, password } = req.body;
-        console.log('Admin login attempt with email:', email);
-        console.log('Admin login attempt with password:', password);
+    if(role==="admin"){
+        const {email,password} = req.body;  
         const adminEmail = process.env.ADMIN_EMAIL;
         const adminPassword = process.env.ADMIN_PASSWORD;
-        if (email !== adminEmail || password !== adminPassword) {
-            throw new apierror(401, "we are not getting your credentials right plaease try again");
+        if(email!==adminEmail || password!==adminPassword){
+            throw new apierror(401,"Invalid admin credentials");
         }
         const adminData = {
-            email: adminEmail,
-            role: "admin"
+            email:adminEmail,
+            role:"admin"    
         };
         return res.status(200).json(
-            new apiResponse(200, adminData, "Admin logged in successfully")
+            new apiResponse(200,adminData,"Admin logged in successfully")
         )
     }
 })
 
-// === YAHAN SE TERA CODE START HOTA HAI (MERGED) ===
-
 // Get student profile by ID
-export const getStudentProfile = asyncHandler(async(req, res) => {
+export const getStudentProfile = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
 
     if (!studentId) {
@@ -165,7 +167,7 @@ export const getStudentProfile = asyncHandler(async(req, res) => {
 })
 
 // Update student profile
-export const updateStudentProfile = asyncHandler(async(req, res) => {
+export const updateStudentProfile = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
     const { fullname, email, branch, cgpa, phone } = req.body;
 
@@ -182,10 +184,7 @@ export const updateStudentProfile = asyncHandler(async(req, res) => {
     if (fullname) student.fullname = fullname;
     if (email) student.email = email;
     if (branch) student.branch = branch;
-    
-    // CGPA FIX: 0 value handle karne ke liye
-    if (cgpa !== undefined) student.cgpa = cgpa;
-    
+    if (cgpa) student.cgpa = cgpa;
     if (phone) student.phone = phone;
 
     const updatedStudent = await student.save();
@@ -196,8 +195,8 @@ export const updateStudentProfile = asyncHandler(async(req, res) => {
     );
 })
 
-// Update student skills
-export const updateStudentSkills = asyncHandler(async(req, res) => {
+// Update student skills (array)
+export const updateStudentSkills = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
     const { skills } = req.body;
 
@@ -210,7 +209,9 @@ export const updateStudentSkills = asyncHandler(async(req, res) => {
     }
 
     const student = await User.findByIdAndUpdate(
-        studentId, { skills }, { new: true }
+        studentId,
+        { skills },
+        { new: true }
     ).select("-password -refreshToken");
 
     if (!student) {
@@ -223,7 +224,8 @@ export const updateStudentSkills = asyncHandler(async(req, res) => {
 })
 
 // Upload resume
-export const uploadResume = asyncHandler(async(req, res) => {
+// Uses Cloudinary; saves resumeUrl on student; deletes local temp file in utils
+export const uploadResume = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
 
     if (!studentId) {
@@ -245,7 +247,7 @@ export const uploadResume = asyncHandler(async(req, res) => {
         throw new apierror(500, "Failed to upload resume");
     }
 
-    student.resumeUrl = resumeUrl;
+    student.resumeUrl = resumeUrl.url;
     await student.save();
 
     const updatedStudent = await User.findById(studentId).select("-password -refreshToken");

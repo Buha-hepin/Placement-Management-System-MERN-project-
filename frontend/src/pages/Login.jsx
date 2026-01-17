@@ -5,6 +5,7 @@ import { loginUser } from '../services/api.js';
 const ADMIN_EMAIL ='admin@gmail.com';
 const ADMIN_PASSWORD ='Admin123';
 
+// Login: role-based (student/company/admin); stores IDs in localStorage
 function Login() {
   const [role, setRole] = useState("student");
   const [showPassword, setShowPassword] = useState(false);

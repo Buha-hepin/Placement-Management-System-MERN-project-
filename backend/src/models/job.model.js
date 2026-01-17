@@ -1,8 +1,10 @@
+// Job schema: describes a job posting created by a company
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
 const jobSchema = new Schema({
+    // Reference to company that posted the job
     companyId: {
         type: Schema.Types.ObjectId,
         ref: "Company",
@@ -14,6 +16,7 @@ const jobSchema = new Schema({
         required: true
     },
 
+    // Human-readable title e.g. "Software Engineer"
     jobTitle: {
         type: String,
         required: true
@@ -24,6 +27,7 @@ const jobSchema = new Schema({
         required: true
     },
 
+    // Plain text bullet points
     requirements: {
         type: [String],
         required: true
@@ -38,6 +42,7 @@ const jobSchema = new Schema({
         type: String,
     },
 
+    // Enum ensures consistent values for filtering
     jobType: {
         type: String,
         enum: ["Full-time", "Internship", "Part-time"],
@@ -59,6 +64,7 @@ const jobSchema = new Schema({
         required: true
     },
 
+    // Moderation status
     status: {
         type: String,
         enum: ["pending", "approved", "rejected"],

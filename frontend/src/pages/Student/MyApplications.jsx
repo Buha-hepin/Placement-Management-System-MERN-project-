@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Clock, TrendingUp } from 'lucide-react';
 import { getStudentApplications } from '../../services/api.js';
 
+// MyApplications: shows jobs student has applied to + per-application status
 export default function MyApplications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function MyApplications() {
 
   const stats = {
     total: applications.length,
-    pending: applications.filter(a => a.status === 'pending').length,
+    pending: applications.filter(a => a.status === 'pending' || a.status === 'approved').length,
     approved: applications.filter(a => a.status === 'approved').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
   };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, MapPin, DollarSign, Clock, Search, Filter, ChevronRight } from 'lucide-react';
 import { getAllApprovedJobs, applyForJob, getStudentApplications } from '../../services/api.js';
 
+// JobListings: browse approved jobs with filters and apply action
 export default function JobListings() {
   const [jobs, setJobs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);

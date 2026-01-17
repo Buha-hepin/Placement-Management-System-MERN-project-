@@ -1,130 +1,114 @@
+// Company controller: company profile and company job management
 import { asyncHandler } from "../utils/asynchandler.js";
-import{apierror} from "../utils/apierror.js";
-import { User } from "../models/user.model.js";
+import { apierror } from "../utils/apierror.js";
 import { Company } from "../models/company.model.js";
-import { uploadoncloudinary } from "../utils/cloudinary.js";
-import{ apiResponse } from "../utils/apiResponse.js"; 
-import { Job } from "../models/company.model.js";  
+import { Job } from "../models/job.model.js";
+import { apiResponse } from "../utils/apiResponse.js";
 
-const fetchCompanyDetails = asyncHandler(async (req, res, next) => {
-  const { id } = req.params;
+// Get company details by ID
+export const fetchCompanyDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
 
-  const company = await Company.findById(id);
+    if (!id) {
+        throw new apierror(400, "Company ID is required");
+    }
 
-  if (!company) {
-    return next(new apierror(404, "Company details not found"));
-  }
+    const company = await Company.findById(id).select("-password -refreshToken");
+    if (!company) {
+        throw new apierror(404, "Company not found");
+    }
 
-  return res.status(200).json(new apiResponse(200, company, "Company details fetched successfully"));
+    return res.status(200).json(
+        new apiResponse(200, company, "Company details retrieved successfully")
+    );
 });
 
-const editCcompanyDetails = asyncHandler(async (req, res, next) => {
-  try {
+// Edit company details
+export const editCompanyDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const { companyName, email, location, website, description } = req.body;
 
-    const updatedUser = await Company.findByIdAndUpdate(
-      id,
-      req.body, 
-      {
-        new: true,          
-        runValidators: true
-      }
-    );
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+    if (!id) {
+        throw new apierror(400, "Company ID is required");
     }
 
- 
-    res.status(200).json({
-      success: true,
-      message: "Company profile updated successfully",
-      data: updatedUser,
-    });
-
-  } catch (error) {
-    console.error("Edit Company Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-}); 
-
-
-const postJob = asyncHandler(async(req,res,next)=>{
-   try {
-    const { id } = req.params;
-
-    
-    const job = await Job.create({
-      ...req.body,
-      company: id
-    });
-
-    
-    await Company.findByIdAndUpdate(
-      id,
-      { $push: { jobPostings: job._id } },
-      { new: true }
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Job created & added to company",
-      data: job
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-}); 
-  
-
-const fetchJobsByCompany = asyncHandler(async (req, res, next) => { 
-  try {
-    const { id } = req.params;
-    
-
-    const company = await Company.findById(id)
-    .populate('jobPostings'); 
-         // this will convert job IDs to full job objects
- 
-         console.log(company)
-
+    const company = await Company.findById(id);
     if (!company) {
-      return res.status(404).json({
-        success: false,
-        message: "Company not found"
-      });
+        throw new apierror(404, "Company not found");
     }
 
-      return res.status(200).json(new apiResponse(200, company, "Company details fetched successfully"));
- 
+    // Update only provided fields
+    if (companyName) company.companyName = companyName;
+    if (email) company.email = email;
+    if (location) company.location = location;
+    if (website) company.website = website;
+    if (description) company.description = description;
 
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
+    const updatedCompany = await company.save();
+    const companyData = await Company.findById(updatedCompany._id).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new apiResponse(200, companyData, "Company details updated successfully")
+    );
+});
+
+// Post a new job
+// Maps request fields to Job schema; includes companyName from DB
+export const postJob = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { title, description, location, salary, requirements, skillsRequired, jobType } = req.body;
+
+    if (!id) {
+        throw new apierror(400, "Company ID is required");
+    }
+
+    if (![title, description, location].every(field => typeof field === 'string' && field.trim().length > 0)) {
+        throw new apierror(400, "Title, description, and location are required");
+    }
+
+    const company = await Company.findById(id);
+    if (!company) {
+        throw new apierror(404, "Company not found");
+    }
+
+    // Map fields to Job model schema
+    const job = await Job.create({
+        companyId: id,
+        companyName: company.companyName,
+        jobTitle: title,
+        jobDescription: description,
+        requirements: Array.isArray(requirements) ? requirements : [],
+        location,
+        salary,
+        jobType,
+        skills: Array.isArray(skillsRequired) ? skillsRequired : [],
+        // Keep pending by default to allow admin flow, adjust as needed
+        status: "approved"
     });
-  }
 
-})
+    return res.status(201).json(
+        new apiResponse(201, job, "Job posted successfully")
+    );
+});
 
+// Fetch all jobs posted by a company
+// Returns jobs by companyId for dashboard, newest first
+export const fetchJobsByCompany = asyncHandler(async (req, res) => {
+    const { id } = req.params;
 
-  
+    if (!id) {
+        throw new apierror(400, "Company ID is required");
+    }
 
+    const company = await Company.findById(id);
+    if (!company) {
+        throw new apierror(404, "Company not found");
+    }
 
-export {
-  fetchCompanyDetails,
-  editCcompanyDetails,
-  postJob,
-  fetchJobsByCompany,
-}
+    // Use correct field from Job model
+    const jobs = await Job.find({ companyId: id }).sort({ postedAt: -1 });
+
+    return res.status(200).json(
+        new apiResponse(200, jobs, "Jobs retrieved successfully")
+    );
+});

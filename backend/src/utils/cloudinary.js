@@ -9,6 +9,8 @@ import fs from 'fs';
     });
 
 
+    // Upload a local file to Cloudinary.
+    // Always deletes local temp file on success/failure to avoid disk bloat.
     const uploadoncloudinary = async (filePath) => {
         try {
             if(!filePath) { return null; }
@@ -17,11 +19,19 @@ import fs from 'fs';
                 resource_type: 'auto',
                 },
             )
+            // Delete file after successful upload
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
             return response
            
         } catch (error) {
-           fs.unlinkSync(filePath); // Delete the file if upload fails
-              console.error('Error uploading to Cloudinary:', error);   
+            // Delete the file if upload fails
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+            console.error('Error uploading to Cloudinary:', error);
+            return null;
         }
     }
 
