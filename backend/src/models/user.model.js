@@ -35,6 +35,16 @@ const userSchema = new Schema({
         type: String,
     },
 
+    cgpa:{
+        type: Number,
+        min: 0,
+        max: 10,
+    },
+
+    phone:{
+        type: String,
+    },
+
     skills:{
         type: [String],
     },

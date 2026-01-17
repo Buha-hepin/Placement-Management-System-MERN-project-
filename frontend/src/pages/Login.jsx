@@ -50,6 +50,15 @@ function Login() {
       console.log('Login success', response);
       localStorage.setItem('userId', response.data._id);
 
+      // Store user data in localStorage
+      if (role === 'student' && response.data._id) {
+        localStorage.setItem('studentId', response.data._id);
+        localStorage.setItem('studentData', JSON.stringify(response.data));
+      } else if (role === 'company' && response.data._id) {
+        localStorage.setItem('companyId', response.data._id);
+        localStorage.setItem('companyData', JSON.stringify(response.data));
+      }
+
       // Navigate based on role
       if (role === 'student') navigate('/Student');
       else if (role === 'company') navigate('/Company/Dashboard');
