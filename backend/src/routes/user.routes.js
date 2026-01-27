@@ -12,7 +12,7 @@ import {
 // Company Controllers (From Main Branch)
 import { 
     fetchCompanyDetails, 
-    editCcompanyDetails, 
+    editCompanyDetails, 
     postJob, 
     fetchJobsByCompany 
 } from '../controllers/company.controller.js';
@@ -33,7 +33,7 @@ router.route('/student/:studentId/resume').post(upload.single('resume'), uploadR
 
 // Company routes (Main branch wala code)
 router.route('/companyDetails/:id').get(fetchCompanyDetails);
-router.route('/editCompanyDetails/:id').post(editCcompanyDetails);
+router.route('/editCompanyDetails/:id').post(editCompanyDetails);
 router.route('/postjob/:id').post(postJob);
 router.route('/fetchjobs/:id').get(fetchJobsByCompany);
 

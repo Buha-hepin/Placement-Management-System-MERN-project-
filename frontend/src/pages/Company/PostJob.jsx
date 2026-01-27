@@ -103,7 +103,32 @@ export default function PostJob() {
           </section>
           
           <div className="flex flex-col md:flex-row gap-4">
-             <button className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
+             <button onClick={async () => {
+               try {
+                 setLoading(true);
+                 const companyId = localStorage.getItem('companyId');
+                 const companyData = JSON.parse(localStorage.getItem('companyData') || '{}');
+                 if (!companyId) { alert('Please login as company first!'); return; }
+                 const jobData = {
+                   companyId,
+                   companyName: companyData.companyName || jobDetails.companyName,
+                   jobTitle: jobDetails.role,
+                   jobDescription: jobDetails.description,
+                   location: jobDetails.location,
+                   salary: jobDetails.salary,
+                   jobType: jobDetails.type,
+                   skills: jobDetails.skills ? jobDetails.skills.split(',').map(s => s.trim()) : [],
+                   requirements: jobDetails.requirements ? jobDetails.requirements.split(',').map(r => r.trim()) : [],
+                   applicationDeadline: jobDetails.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                   minCGPA: 6.0,
+                   status: 'draft'
+                 };
+                 await createJob(jobData);
+                 alert('📝 Saved as Draft');
+               } catch (e) {
+                 alert('Failed to save draft: ' + (e.message || ''));
+               } finally { setLoading(false); }
+             }} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
                <FiSave /> Save as Draft
              </button>
              <button onClick={() => {setShowPublishModal(true); setAlertMessage(`Opening: ${jobDetails.role} at ${jobDetails.companyName || 'your company'}`);}} disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">

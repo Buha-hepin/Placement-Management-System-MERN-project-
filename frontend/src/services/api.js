@@ -313,8 +313,9 @@ export async function getCompanyJobs(companyId) {
 }
 
 // Get applicants for a specific job
-export async function getJobApplicants(jobId) {
-  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants`;
+export async function getJobApplicants(jobId, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants${query ? `?${query}` : ''}`;
 
   const res = await fetch(url, {
     method: 'GET',
@@ -367,6 +368,32 @@ export async function updateApplicantStatus(jobId, applicationId, status) {
   return data;
 }
 
+export async function updateApplicantsBulkStatus(jobId, applicationIds, status) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants/bulk-status`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ applicationIds, status }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 // Create/Post Job (Company)
 export async function createJob(jobData) {
   const url = `${BASE_URL}/api/v1/jobs/create`;
@@ -377,6 +404,33 @@ export async function createJob(jobData) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(jobData),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Send notification (dev) for an applicant
+export async function notifyApplicant(jobId, applicationId, payload) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants/${applicationId}/notify`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
     credentials: 'include'
   });
 

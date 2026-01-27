@@ -132,5 +132,4 @@ companySchema.methods.generateRefreshToken = function() {
     );
 }
 
-export const Company = mongoose.model("Company", companySchema); 
-export const Job = mongoose.model("Job", jobPostingsSchema);  
+export const Company = mongoose.models.Company || mongoose.model("Company", companySchema);  

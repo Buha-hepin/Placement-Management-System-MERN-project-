@@ -21,7 +21,7 @@ export default function CompanyLayout() {
       )}
 
       {/* --- SIDEBAR --- */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-tr from-purple-700 to-blue-700 rounded-tr-2xl rounded-br-2xl text-white flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-tr from-cyan-700 to-blue-700 rounded-tr-2xl rounded-br-2xl text-white flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
         <div className="p-6 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">

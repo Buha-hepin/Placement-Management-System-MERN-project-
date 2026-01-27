@@ -36,14 +36,17 @@ export default function MyApplications() {
 
   const stats = {
     total: applications.length,
-    pending: applications.filter(a => a.status === 'pending' || a.status === 'approved').length,
-    approved: applications.filter(a => a.status === 'approved').length,
+    pending: applications.filter(a => a.status === 'pending').length,
+    shortlisted: applications.filter(a => a.status === 'shortlisted').length,
+    selected: applications.filter(a => a.status === 'selected').length,
     rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'approved':
+      case 'shortlisted':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'selected':
         return 'bg-green-50 text-green-700 border-green-200';
       case 'rejected':
         return 'bg-red-50 text-red-700 border-red-200';
@@ -56,10 +59,12 @@ export default function MyApplications() {
 
   const getStatusIcon = (status) => {
     switch(status) {
-      case 'approved':
-        return '✓';
+      case 'shortlisted':
+        return '👍';
+      case 'selected':
+        return '✅';
       case 'rejected':
-        return '✕';
+        return '❌';
       case 'pending':
         return '⏳';
       default:
@@ -101,8 +106,18 @@ export default function MyApplications() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Approved</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.approved}</p>
+                <p className="text-gray-600 text-sm font-medium">Shortlisted</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.shortlisted}</p>
+              </div>
+              <TrendingUp className="text-blue-500" size={32} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Selected</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{stats.selected}</p>
               </div>
               <TrendingUp className="text-green-500" size={32} />
             </div>
@@ -111,7 +126,7 @@ export default function MyApplications() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Rejected</p>
+                <p className="tshortlisted', 'selectay-600 text-sm font-medium">Rejected</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">{stats.rejected}</p>
               </div>
               <Briefcase className="text-red-500" size={32} />
@@ -253,7 +268,12 @@ export default function MyApplications() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Status:</span>
-                            <span className={`font-medium ${application.status === 'approved' ? 'text-green-600' : application.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>
+                            <span className={`font-medium ${
+                              application.status === 'selected' ? 'text-green-600' : 
+                              application.status === 'shortlisted' ? 'text-blue-600' : 
+                              application.status === 'rejected' ? 'text-red-600' : 
+                              'text-yellow-600'
+                            }`}>
                               {application.status.toUpperCase()}
                             </span>
                           </div>
