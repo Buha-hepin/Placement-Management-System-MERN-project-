@@ -134,6 +134,17 @@ export const getStudentApplications = asyncHandler(async(req,res)=>{
 // Get applicants for a specific job (Company views applicants)
 export const getJobApplicants = asyncHandler(async(req,res)=>{
     const { jobId } = req.params;
+    const {
+        search = "",
+        status = "",
+        branch = "",
+        minCgpa = "",
+        skills = "",
+        sortBy = "appliedAt",
+        sortOrder = "desc",
+        page = 1,
+        limit = 20
+    } = req.query;
 
     if (!jobId) {
         throw new apierror(400, "Job ID is required");
@@ -144,19 +155,98 @@ export const getJobApplicants = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Job not found");
     }
 
-    const apps = await Application.find({ jobId })
+    // Base query with optional status filter
+    const baseQuery = { jobId };
+    if (status) {
+        baseQuery.status = status;
+    }
+
+    let apps = await Application.find(baseQuery)
         .sort({ createdAt: -1 })
         .populate({ path: 'studentId', select: 'fullname email branch cgpa phone skills resumeUrl enrollmentNo' });
 
-    const applicants = apps.map(a => ({
+    // Transform for easier filtering/sorting
+    let applicants = apps.map(a => ({
         _id: a._id,
         status: a.status,
         appliedAt: a.appliedAt,
         student: a.studentId
     }));
 
+    // Server-side filtering (fast win without aggregation)
+    if (search) {
+        const q = search.toLowerCase();
+        applicants = applicants.filter(({ student }) => {
+            const s = student || {};
+            return (
+                (s.fullname || '').toLowerCase().includes(q) ||
+                (s.email || '').toLowerCase().includes(q) ||
+                (s.enrollmentNo || '').toLowerCase().includes(q) ||
+                (s.branch || '').toLowerCase().includes(q)
+            );
+        });
+    }
+
+    if (branch) {
+        const b = branch.toLowerCase();
+        applicants = applicants.filter(({ student }) => ((student?.branch || '').toLowerCase() === b));
+    }
+
+    if (minCgpa) {
+        const min = Number(minCgpa);
+        if (!Number.isNaN(min)) {
+            applicants = applicants.filter(({ student }) => Number(student?.cgpa || 0) >= min);
+        }
+    }
+
+    if (skills) {
+        const list = skills.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        if (list.length) {
+            applicants = applicants.filter(({ student }) => {
+                const userSkills = (student?.skills || []).map(x => String(x).toLowerCase());
+                return list.every(tag => userSkills.includes(tag));
+            });
+        }
+    }
+
+    // Sorting
+    const dir = sortOrder === 'asc' ? 1 : -1;
+    applicants.sort((a, b) => {
+        const getVal = (x) => {
+            switch (sortBy) {
+                case 'cgpa':
+                    return Number(x.student?.cgpa || 0);
+                case 'fullname':
+                    return (x.student?.fullname || '').toLowerCase();
+                case 'status':
+                    return (x.status || '').toLowerCase();
+                case 'appliedAt':
+                default:
+                    return new Date(x.appliedAt || 0).getTime();
+            }
+        };
+        const va = getVal(a);
+        const vb = getVal(b);
+        if (va < vb) return -1 * dir;
+        if (va > vb) return 1 * dir;
+        return 0;
+    });
+
+    // Pagination
+    const p = parseInt(page) || 1;
+    const l = parseInt(limit) || 20;
+    const total = applicants.length;
+    const start = (p - 1) * l;
+    const paged = applicants.slice(start, start + l);
+
     return res.status(200).json(
-        new apiResponse(200, { jobTitle: job.jobTitle, applicants }, "Job applicants retrieved successfully")
+        new apiResponse(200, {
+            jobTitle: job.jobTitle,
+            applicants: paged,
+            total,
+            page: p,
+            totalPages: Math.ceil(total / l)
+        }, "Job applicants retrieved successfully")
     );
 })
 
@@ -185,7 +275,7 @@ export const updateApplicantStatus = asyncHandler(async(req,res)=>{
 // Create job (Company posts job)
 // Validates required arrays and fields; status is approved (temp for demo)
 export const createJob = asyncHandler(async(req,res)=>{
-    const { companyId, companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline } = req.body;
+    const { companyId, companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline, status } = req.body;
 
     if (![jobTitle, jobDescription, companyName, location, applicationDeadline].every(field => field?.toString().trim().length > 0)) {
         throw new apierror(400, "All required fields must be filled");
@@ -211,13 +301,63 @@ export const createJob = asyncHandler(async(req,res)=>{
         skills,
         minCGPA,
         applicationDeadline,
-        status: "approved" // ✅ TEMPORARY: Direct approved for testing (Remove admin approval flow for now)
+        status: ["draft","pending"].includes(status) ? status : "pending"
     });
 
     return res.status(201).json(
         new apiResponse(201, job, "Job posted successfully")
     );
 })
+
+// Job analytics: counts and top skills/branches
+export const getJobAnalytics = asyncHandler(async(req,res)=>{
+    const { jobId } = req.params;
+    if (!jobId) throw new apierror(400, "Job ID is required");
+
+    const apps = await Application.find({ jobId })
+        .populate({ path: 'studentId', select: 'branch skills' });
+
+    const total = apps.length;
+    const shortlisted = apps.filter(a => a.status === 'shortlisted').length;
+    const selected = apps.filter(a => a.status === 'selected').length;
+    const rejected = apps.filter(a => a.status === 'rejected').length;
+
+    const branchCounts = {};
+    const skillCounts = {};
+    apps.forEach(a => {
+        const b = (a.studentId?.branch || '').trim();
+        if (b) branchCounts[b] = (branchCounts[b] || 0) + 1;
+        const sk = (a.studentId?.skills || []).map(s => String(s).trim()).filter(Boolean);
+        sk.forEach(tag => { skillCounts[tag] = (skillCounts[tag] || 0) + 1; });
+    });
+
+    // Top 5 skills/branches
+    const topBranches = Object.entries(branchCounts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,count])=>({ name, count }));
+    const topSkills = Object.entries(skillCounts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,count])=>({ name, count }));
+
+    return res.status(200).json(new apiResponse(200, {
+        total, shortlisted, selected, rejected,
+        shortlistRatio: total ? (shortlisted/total) : 0,
+        topBranches,
+        topSkills
+    }, 'Job analytics'));
+});
+
+// Dev notification endpoint: logs template to console
+export const notifyApplicant = asyncHandler(async(req,res)=>{
+    const { jobId, applicationId } = req.params;
+    const { type = 'status-update', message = '' } = req.body;
+    const appDoc = await Application.findOne({ _id: applicationId, jobId }).populate({ path: 'studentId', select: 'fullname email' });
+    if (!appDoc) throw new apierror(404, 'Application not found');
+    const payload = {
+        to: appDoc.studentId?.email,
+        name: appDoc.studentId?.fullname,
+        type,
+        message: message || `Dear ${appDoc.studentId?.fullname}, your application status is '${appDoc.status}'.`
+    };
+    console.log('[DEV EMAIL]', payload);
+    return res.status(200).json(new apiResponse(200, payload, 'Notification logged'));
+});
 
 // TEST ROUTE - Create pre-approved job (TEMPORARY - for testing only)
 export const createTestJob = asyncHandler(async(req,res)=>{
@@ -297,4 +437,30 @@ export const rejectJob = asyncHandler(async(req,res)=>{
     return res.status(200).json(
         new apiResponse(200, job, "Job rejected successfully")
     );
+})
+
+// Bulk update applicant status for a job
+export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
+    const { jobId } = req.params;
+    const { applicationIds = [], status } = req.body;
+
+    if (!jobId) throw new apierror(400, 'Job ID is required');
+    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+        throw new apierror(400, 'applicationIds must be a non-empty array');
+    }
+    if (!['pending','shortlisted','rejected','selected'].includes(status)) {
+        throw new apierror(400, 'Invalid status');
+    }
+
+    const result = await Application.updateMany(
+        { _id: { $in: applicationIds }, jobId },
+        { $set: { status } }
+    );
+
+    return res.status(200).json(new apiResponse(200, {
+        acknowledged: result.acknowledged,
+        matchedCount: result.matchedCount,
+        modifiedCount: result.modifiedCount,
+        status
+    }, 'Bulk status updated'));
 })

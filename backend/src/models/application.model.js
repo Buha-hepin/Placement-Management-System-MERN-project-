@@ -20,4 +20,4 @@ const applicationSchema = new Schema(
 // Prevent duplicate applications for the same job by the same student
 applicationSchema.index({ jobId: 1, studentId: 1 }, { unique: true });
 
-export const Application = mongoose.model("Application", applicationSchema);
+export const Application = mongoose.models.Application || mongoose.model("Application", applicationSchema);

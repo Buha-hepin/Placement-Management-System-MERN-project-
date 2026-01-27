@@ -59,11 +59,8 @@ function App() {
            {/* Job Post karna: /company/post-job */}
            <Route path="post-job" element={<PostJob />} />
            
-            {/* Applicants: /company/applicants/:jobId? */}
-            <Route path="applicants">
-             <Route path=":jobId" element={<CompanyApplicants />} />
-             <Route index element={<CompanyApplicants />} />
-            </Route>
+             {/* Applicants: /company/applicants/:jobId? */}
+             <Route path="applicants/:jobId?" element={<CompanyApplicants />} />
 
            {/* Profile: /company/profile */}
            <Route path="profile" element={<CompanyProfile />} />

@@ -52,7 +52,7 @@ const router = createBrowserRouter(
           <Route path="dashboard" element={<CompanyDashboard/>} />
           <Route path="post-job" element={<PostJob/>} />
           <Route path="profile" element={<CompanyProfile/>} />
-          <Route path="applicants" element={<CompanyApplicants/>} />
+          <Route path="applicants/:jobId?" element={<CompanyApplicants/>} />
       </Route>
       {/* --- ADMIN ROUTES --- */}
       <Route path="/admin" element={<AdminLayout/>}>

@@ -67,7 +67,7 @@ const jobSchema = new Schema({
     // Moderation status
     status: {
         type: String,
-        enum: ["pending", "approved", "rejected"],
+        enum: ["draft", "pending", "approved", "rejected"],
         default: "pending"
     },
 
@@ -86,4 +86,4 @@ const jobSchema = new Schema({
     timestamps: true
 });
 
-export const Job = mongoose.model("Job", jobSchema);
+export const Job = mongoose.models.Job || mongoose.model("Job", jobSchema);
