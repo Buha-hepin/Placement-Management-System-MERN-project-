@@ -71,6 +71,11 @@ const jobSchema = new Schema({
         default: "pending"
     },
 
+    rejectionReason: {
+        type: String,
+        default: null
+    },
+
     applicants: {
         type: [Schema.Types.ObjectId],
         ref: "User",

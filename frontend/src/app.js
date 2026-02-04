@@ -22,6 +22,7 @@ import AdminLayout from './pages/Admin/AdminLayout';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AllCompanies from './pages/Admin/AllCompanies';
 import AllStudents from './pages/Admin/AllStudents';
+import ApproveJobs from './pages/Admin/ApproveJobs';
 
 function App() {
   return (
@@ -37,15 +38,13 @@ function App() {
         <Route path="/student" element={<StudentDashboard />} />
 
         <Route path="/admin" element={<AdminLayout />}>
-        <Route path="/admin" element={<AdminLayout />}>
-        {/* Default to Dashboard */}
-        <Route index element={<AdminDashboard />} /> 
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="companies" element={<AllCompanies />} />
-        <Route path="students" element={<AllStudents />} />
+          {/* Default to Dashboard */}
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="companies" element={<AllCompanies />} />
+          <Route path="students" element={<AllStudents />} />
+          <Route path="approve-jobs" element={<ApproveJobs />} />
         </Route>
-        </Route>
-  {/* Jobs wala page baad me banayenge */}
       
         
 

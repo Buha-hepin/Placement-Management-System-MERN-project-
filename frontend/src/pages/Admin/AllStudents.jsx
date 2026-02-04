@@ -1,145 +1,167 @@
-import React, { useState } from 'react';
-import { Search, Eye, Trash2, Ban, X, Mail, Phone, BookOpen, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Search, Trash2 } from 'lucide-react';
 
-const AllStudents = () => {
-  const [selectedStudent, setSelectedStudent] = useState(null); // Modal State
-  const [searchTerm, setSearchTerm] = useState("");
+export default function AllStudents() {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 10;
 
-  // --- DUMMY DATA ---
-  const students = [
-    { id: 1, name: 'Rahul Patel', enrollment: '21IT056', email: 'rahul@example.com', phone: '9876543210', branch: 'IT', cgpa: 8.45, skills: ['React', 'Node.js', 'Python'], status: 'Active' },
-    { id: 2, name: 'Priya Sharma', enrollment: '21CE012', email: 'priya@example.com', phone: '9123456789', branch: 'CE', cgpa: 9.10, skills: ['Java', 'SQL', 'AWS'], status: 'Placed' },
-    { id: 3, name: 'Amit Verma', enrollment: '21IT005', email: 'amit@example.com', phone: '9988776655', branch: 'IT', cgpa: 6.50, skills: ['C++', 'HTML/CSS'], status: 'Active' },
-  ];
+  useEffect(() => {
+    fetchStudents();
+  }, [page, search]);
 
-  // Functions
-  const handleDelete = () => {
-    alert(`Deleting student: ${selectedStudent.name}`);
-    setSelectedStudent(null);
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://localhost:8000/api/v1/admin/students?page=${page}&limit=${limit}&search=${search}`
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        setStudents(data.data.students);
+        setTotalCount(data.data.totalCount);
+      }
+    } catch (error) {
+      console.error('Failed to fetch students:', error);
+      alert('Failed to fetch students');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleBlock = () => {
-    alert(`Blocking student: ${selectedStudent.name}`);
-    setSelectedStudent(null);
+  const handleDelete = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/v1/admin/students/${studentId}`,
+        { method: 'DELETE' }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Student deleted successfully');
+        fetchStudents();
+      }
+    } catch (error) {
+      console.error('Failed to delete student:', error);
+      alert('Failed to delete student');
+    }
   };
+
+  const totalPages = Math.ceil(totalCount / limit);
 
   return (
-    <div className="space-y-6">
-      
-      {/* Header & Search */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Manage Students</h2>
-        <div className="relative w-full md:w-72">
-          <input 
-            type="text" 
-            placeholder="Search Enrollment or Name..." 
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-            onChange={(e) => setSearchTerm(e.target.value)}
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <Users className="text-blue-600" /> Manage Students
+        </h1>
+        <p className="text-gray-600 mt-2">View and manage all registered students</p>
+      </div>
+
+      {/* Search */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-xl">
+          <Search size={20} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name, email, or enrollment number..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="flex-1 bg-transparent outline-none text-gray-700"
           />
-          <Search className="absolute left-3 top-3 text-gray-400" size={18} />
         </div>
       </div>
 
-      {/* Student List Table */}
+      {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-semibold">
-            <tr>
-              <th className="p-4 pl-6">Enrollment</th>
-              <th className="p-4">Name</th>
-              <th className="p-4">Branch</th>
-              <th className="p-4">CGPA</th>
-              <th className="p-4 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
-            {students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment.includes(searchTerm)).map((student) => (
-              <tr 
-                key={student.id} 
-                className="hover:bg-blue-50/50 transition cursor-pointer"
-                onClick={() => setSelectedStudent(student)} // Row Click -> Open Modal
-              >
-                <td className="p-4 pl-6 font-mono text-gray-600">{student.enrollment}</td>
-                <td className="p-4 font-bold text-gray-800">{student.name}</td>
-                <td className="p-4"><span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-bold">{student.branch}</span></td>
-                <td className="p-4 font-semibold text-gray-700">{student.cgpa}</td>
-                <td className="p-4 text-center">
-                  <button className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100 transition">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 🔥 STUDENT PROFILE MODAL (Popup) */}
-      {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
-            
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white flex justify-between items-start">
-              <div className="flex gap-4 items-center">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold backdrop-blur-sm">
-                   {selectedStudent.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">{selectedStudent.name}</h3>
-                  <p className="text-blue-100 text-sm">{selectedStudent.enrollment} | {selectedStudent.branch}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedStudent(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-1"><Mail size={12}/> Email</p>
-                  <p className="font-medium text-gray-800 text-sm truncate">{selectedStudent.email}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-1"><Phone size={12}/> Phone</p>
-                  <p className="font-medium text-gray-800 text-sm">{selectedStudent.phone}</p>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                 <p className="text-xs text-gray-500 flex items-center gap-1 mb-1"><BookOpen size={12}/> Skills</p>
-                 <div className="flex flex-wrap gap-2 mt-2">
-                   {selectedStudent.skills.map((skill, i) => (
-                     <span key={i} className="bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-medium shadow-sm">
-                       {skill}
-                     </span>
-                   ))}
-                 </div>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <span className="text-blue-800 font-semibold text-sm">Current CGPA</span>
-                <span className="text-2xl font-bold text-blue-600">{selectedStudent.cgpa}</span>
-              </div>
-            </div>
-
-            {/* Modal Footer (Danger Zone) */}
-            <div className="bg-gray-50 p-4 border-t border-gray-100 flex gap-3 justify-end">
-               <button onClick={handleBlock} className="flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-700 font-semibold rounded-lg hover:bg-yellow-200 transition">
-                 <Ban size={18}/> Block
-               </button>
-               <button onClick={handleDelete} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-200 transition">
-                 <Trash2 size={18}/> Delete
-               </button>
-            </div>
-
-          </div>
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800">Students ({totalCount})</h2>
         </div>
-      )}
+
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading students...</p>
+          </div>
+        ) : students.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No students found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold border-b border-gray-100">
+                <tr>
+                  <th className="p-4 pl-6">Name</th>
+                  <th className="p-4">Enrollment No.</th>
+                  <th className="p-4">Email</th>
+                  <th className="p-4">Branch</th>
+                  <th className="p-4">Joined</th>
+                  <th className="p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {students.map((student) => (
+                  <tr key={student._id} className="hover:bg-gray-50 transition">
+                    <td className="p-4 pl-6">
+                      <div>
+                        <p className="font-semibold text-gray-800">{student.fullname}</p>
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-600">{student.enrollmentNo}</td>
+                    <td className="p-4 text-gray-600">{student.email}</td>
+                    <td className="p-4 text-gray-600">{student.branch || 'N/A'}</td>
+                    <td className="p-4 text-gray-600 text-sm">
+                      {new Date(student.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => handleDelete(student._id)}
+                        className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
+                        title="Delete student"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center p-6 border-t border-gray-100">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Previous
+            </button>
+            <span className="text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
-
-export default AllStudents;
+}

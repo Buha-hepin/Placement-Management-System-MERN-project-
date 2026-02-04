@@ -83,7 +83,7 @@ export const postJob = asyncHandler(async (req, res) => {
         jobType,
         skills: Array.isArray(skillsRequired) ? skillsRequired : [],
         // Keep pending by default to allow admin flow, adjust as needed
-        status: "approved"
+        status: "pending"
     });
 
     return res.status(201).json(

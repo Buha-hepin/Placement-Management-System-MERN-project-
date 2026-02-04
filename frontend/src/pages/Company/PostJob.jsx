@@ -8,9 +8,7 @@ export default function PostJob() {
     companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: ''
   });
   
-  const [isPublishToggleOn, setIsPublishToggleOn] = useState(false); 
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
+  const [isPublishToggleOn, setIsPublishToggleOn] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => setJobDetails({ ...jobDetails, [e.target.name]: e.target.value });
@@ -44,7 +42,6 @@ export default function PostJob() {
       };
 
       await createJob(jobData);
-      setShowPublishModal(false);
       alert("✅ Job Published Successfully!");
       
       // Reset form
@@ -131,7 +128,7 @@ export default function PostJob() {
              }} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
                <FiSave /> Save as Draft
              </button>
-             <button onClick={() => {setShowPublishModal(true); setAlertMessage(`Opening: ${jobDetails.role} at ${jobDetails.companyName || 'your company'}`);}} disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+             <button onClick={handlePublishSubmit} disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                <FiSend /> {loading ? 'Publishing...' : 'Publish Now'}
              </button>
           </div>
@@ -139,29 +136,28 @@ export default function PostJob() {
 
         {/* Preview Card */}
         <div className="xl:col-span-1">
-           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-             <h3 className="text-xl font-bold text-gray-900">{jobDetails.companyName}</h3>
+           <div className="sticky top-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+             <h3 className="text-xl font-bold text-gray-900 mb-1">{jobDetails.companyName || 'Company Name'}</h3>
              <p className="text-blue-600 font-semibold text-sm mb-4">{jobDetails.role || 'Job Role'}</p>
-             <p className="text-xs text-gray-500 line-clamp-3 mb-4">{jobDetails.description || 'Description will appear here...'}</p>
-             <button className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm">Apply Now</button>
+             
+             <div className="space-y-3 text-xs text-gray-600 mb-4 pb-4 border-b">
+               <div className="flex items-center gap-2"><FiMapPin className="text-blue-600" /> {jobDetails.location || 'Location'}</div>
+               <div className="flex items-center gap-2"><FiDollarSign className="text-green-600" /> {jobDetails.salary || 'Salary'}</div>
+               <div className="flex items-center gap-2">📋 {jobDetails.type || 'Job Type'}</div>
+               <div className="flex items-center gap-2">📅 Deadline: {jobDetails.deadline || 'Not set'}</div>
+             </div>
+
+             <p className="text-xs text-gray-500 whitespace-pre-wrap line-clamp-4 mb-4">{jobDetails.description || 'Job description will appear here...'}</p>
+             
+             {jobDetails.skills && <div className="text-xs mb-2"><span className="font-semibold">Skills:</span> <p className="whitespace-pre-wrap text-gray-600">{jobDetails.skills}</p></div>}
+             {jobDetails.requirements && <div className="text-xs mb-2"><span className="font-semibold">Requirements:</span> <p className="whitespace-pre-wrap text-gray-600">{jobDetails.requirements}</p></div>}
+             
+             <button className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700">Apply Now</button>
            </div>
         </div>
       </div>
 
-      {/* Modal Popup */}
-      {showPublishModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 text-center">
-            <div className="mx-auto w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4"><FiBell className="text-3xl"/></div>
-            <h3 className="text-xl font-bold mb-2">Publish Job?</h3>
-            <textarea value={alertMessage} onChange={(e) => setAlertMessage(e.target.value)} className="w-full p-3 border rounded-xl mb-6 text-sm bg-gray-50" rows="3"></textarea>
-            <div className="flex gap-3">
-               <button onClick={() => setShowPublishModal(false)} disabled={loading} className="flex-1 py-2.5 border rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50">Cancel</button>
-               <button onClick={handlePublishSubmit} disabled={loading} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50">{loading ? 'Publishing...' : 'Confirm'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Popup Removed - Job publishes directly */}
     </div>
   );
 }

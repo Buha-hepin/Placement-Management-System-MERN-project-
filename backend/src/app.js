@@ -41,6 +41,7 @@ app.use(express.urlencoded({ extended: true }));
 import userRouter from "./routes/user.routes.js"
 import jobRouter from "./routes/job.routes.js"
 import companyRouter from "./routes/company.routes.js"
+import adminRouter from "./routes/admin.routes.js"
 import { apiResponse } from "./utils/apiResponse.js"
 
 
@@ -51,6 +52,8 @@ app.use("/api/v1/users", userRouter)
 app.use("/api/v1/jobs", jobRouter)
 // Company profile + company jobs
 app.use("/api/v1/companies", companyRouter)
+// Admin management
+app.use("/api/v1/admin", adminRouter)
 
 // Global error handler
 app.use((err, req, res, next) => {

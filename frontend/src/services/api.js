@@ -35,7 +35,6 @@ export async function loginUser(payload) {
   console.log('loginUser payload:', payload);
   const url = `${BASE_URL}/api/v1/users/login`;
 
-
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -50,6 +49,34 @@ export async function loginUser(payload) {
   localStorage.setItem('userRole', payload.role);
   
  
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function verifyEmail(email, otp) {
+  const url = `${BASE_URL}/api/v1/users/verify-email`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp }),
+    credentials: 'include'
+  });
+
   let data;
   try {
     data = await res.json();
@@ -449,3 +476,130 @@ export async function notifyApplicant(jobId, applicationId, payload) {
 
   return data;
 }
+
+// Admin APIs
+export async function getAdminDashboard() {
+  const url = `${BASE_URL}/api/v1/admin/dashboard`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getAllStudents(page = 1, limit = 10, search = "") {
+  const url = `${BASE_URL}/api/v1/admin/students?page=${page}&limit=${limit}&search=${search}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getAllCompanies(page = 1, limit = 10, search = "") {
+  const url = `${BASE_URL}/api/v1/admin/companies?page=${page}&limit=${limit}&search=${search}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function deleteStudent(studentId) {
+  const url = `${BASE_URL}/api/v1/admin/students/${studentId}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function deleteCompany(companyId) {
+  const url = `${BASE_URL}/api/v1/admin/companies/${companyId}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+

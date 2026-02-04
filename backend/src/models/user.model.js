@@ -28,7 +28,10 @@ const userSchema = new Schema({
 
     enrollmentNo:{
         type: String,
+        required: [true, "Enrollment number is required"],
         unique: true,
+        index: true,
+        trim: true
     },
 
     branch:{
@@ -56,6 +59,21 @@ const userSchema = new Schema({
     placed:{
         type: Boolean,
         default: false  
+    },
+
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+
+    emailVerificationToken: {
+        type: String,
+        default: null
+    },
+
+    emailVerificationTokenExpiry: {
+        type: Date,
+        default: null
     },
 
     refreshToken: {
