@@ -4,7 +4,14 @@ import{apierror} from "../utils/apierror.js";
 import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { uploadoncloudinary } from "../utils/cloudinary.js";
-import{ apiResponse } from "../utils/apiResponse.js";   
+import{ apiResponse } from "../utils/apiResponse.js";
+// import { sendOTPEmail } from "../utils/emailSender.js";
+import crypto from "crypto";
+
+// Generate 6-digit OTP
+const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+};   
 
 
 // Register user
@@ -21,28 +28,54 @@ export const registerUser = asyncHandler(async(req,res)=>{
                 throw new apierror(400, "All fields are required");
             }
 
-            // Check for existing user
-            const existedUser = await User.findOne({ $or: [{ enrollmentNo }, { email }] });
-            if (existedUser) {
-                throw new apierror(400, "User already exists");
+            // Validate enrollment number format: YYBEBRANCHTTT##
+            // Example: 23BEIT30055 (year-BE-branch-batch-student)
+            const enrollmentRegex = /^\d{2}BE[A-Z]{2}\d{5}$/;
+            if (!enrollmentRegex.test(enrollmentNo.trim())) {
+                throw new apierror(400, "Invalid enrollment number format. Expected format: YYBEBRANCHTTT## (e.g., 23BEIT30055)");
+            }
+
+            // Check for existing user by enrollment number (must be unique)
+            const existingByEnrollment = await User.findOne({ enrollmentNo: enrollmentNo.trim().toUpperCase() });
+            if (existingByEnrollment) {
+                throw new apierror(400, "Enrollment number already registered. Please use a different enrollment number.");
+            }
+            
+            // Also check email uniqueness
+            const existingByEmail = await User.findOne({ email: email.toLowerCase() });
+            if (existingByEmail) {
+                throw new apierror(400, "Email already registered. Please use a different email.");
             }
 
             const user = await User.create({
-                enrollmentNo,
+                enrollmentNo: enrollmentNo.trim().toUpperCase(),
                 fullname: fullName,
-                email,
+                email: email.toLowerCase(),
                 password,
                 branch,
                 skills,
-                resumeUrl
+                resumeUrl,
+                isEmailVerified: false,
+                emailVerificationToken: generateOTP(),
+                emailVerificationTokenExpiry: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
             });
 
-            const createdUser = await User.findById(user._id).select("-password -refreshToken");
+            const createdUser = await User.findById(user._id).select("-password -refreshToken -emailVerificationToken");
             if (!createdUser) {
                 throw new apierror(500, "User creation failed");
             }
 
-            return res.status(201).json(new apiResponse(201, createdUser, "Student registered successfully"));
+            // Send OTP email
+            try {
+                // await sendOTPEmail(email.toLowerCase(), user.emailVerificationToken, fullName);
+                console.log(`📧 OTP for ${email}: ${user.emailVerificationToken}`);
+            } catch (emailError) {
+                console.error("Email sending failed:", emailError.message);
+                // Even if email fails, registration succeeds but user sees warning
+                // In production, you might want to retry or show error
+            }
+
+            return res.status(201).json(new apiResponse(201, createdUser, "Student registered successfully. Please verify your email with the OTP sent to your email address."));
         } catch (error) {
             // Mongo duplicate key
             if (error && error.code === 11000) {
@@ -63,14 +96,14 @@ export const registerUser = asyncHandler(async(req,res)=>{
                 throw new apierror(400, "All fields are required");
             }
 
-            const existedUser = await Company.findOne({ $or: [{ companyName }, { email }] });
+            const existedUser = await Company.findOne({ $or: [{ companyName }, { email: email.toLowerCase() }] });
             if (existedUser) {
                 throw new apierror(400, "Company already exists");
             }
 
             const user = await Company.create({
                 companyName,
-                email,
+                email: email.toLowerCase(),
                 password,
                 location: Location
             });
@@ -106,9 +139,14 @@ export const loginUser = asyncHandler(async(req,res)=>{
             throw new apierror(400, "All fields are required");
         }   
 
-        const user = await User.findOne({enrollmentNo});
+        const user = await User.findOne({enrollmentNo: enrollmentNo.trim().toUpperCase()});
         if(!user || !(await user.comparePassword(password))){
             throw new apierror(401,"Invalid enrollment number or password");
+        }
+
+        // Check if email is verified
+        if (!user.isEmailVerified) {
+            throw new apierror(403, "Please verify your email first. Check your inbox for the OTP.");
         }
 
         const userData = await User.findById(user._id).select("-password -refreshToken");
@@ -122,7 +160,7 @@ export const loginUser = asyncHandler(async(req,res)=>{
             throw new apierror(400, "All fields are required");
         }   
 
-        const company = await Company.findOne({email});
+        const company = await Company.findOne({email: email.toLowerCase()});
         if(!company || !(await company.comparePassword(password))){
             throw new apierror(401,"Invalid email or password");
         }
@@ -254,5 +292,44 @@ export const uploadResume = asyncHandler(async(req,res)=>{
 
     return res.status(200).json(
         new apiResponse(200, updatedStudent, "Resume uploaded successfully")
+    );
+})
+
+// Verify student email with OTP
+export const verifyEmail = asyncHandler(async(req,res)=>{
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new apierror(400, "Email and OTP are required");
+    }
+
+    const student = await User.findOne({ email: email.toLowerCase() });
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    if (student.isEmailVerified) {
+        throw new apierror(400, "Email already verified");
+    }
+
+    // Check if OTP is correct and not expired
+    if (student.emailVerificationToken !== otp) {
+        throw new apierror(400, "Invalid OTP");
+    }
+
+    if (new Date() > student.emailVerificationTokenExpiry) {
+        throw new apierror(400, "OTP has expired. Please register again.");
+    }
+
+    // Mark as verified
+    student.isEmailVerified = true;
+    student.emailVerificationToken = null;
+    student.emailVerificationTokenExpiry = null;
+    await student.save();
+
+    const verifiedStudent = await User.findById(student._id).select("-password -refreshToken -emailVerificationToken");
+    
+    return res.status(200).json(
+        new apiResponse(200, verifiedStudent, "Email verified successfully! You can now login.")
     );
 })

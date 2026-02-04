@@ -25,6 +25,7 @@ import AdminLayout from './pages/Admin/AdminLayout';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AllCompanies from './pages/Admin/AllCompanies';
 import AllStudents from './pages/Admin/AllStudents';
+import ApproveJobs from './pages/Admin/ApproveJobs';
 
 // Error Page
 function ErrorPage() {
@@ -61,6 +62,7 @@ const router = createBrowserRouter(
           <Route path="dashboard" element={<AdminDashboard/>} />
           <Route path="companies" element={<AllCompanies/>} />
           <Route path="students" element={<AllStudents/>} />
+          <Route path="approve-jobs" element={<ApproveJobs/>} />
           
       </Route>
         

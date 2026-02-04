@@ -1,13 +1,17 @@
  import React from 'react'
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { registerUser } from '../services/api.js';
+import { registerUser, verifyEmail } from '../services/api.js';
 
 function Register() {
  const [role, setRole] = useState("student");
  const [showPassword, setShowPassword] = useState(false);
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState("");
+ const [enrollmentError, setEnrollmentError] = useState("");
+ const [showOTPVerification, setShowOTPVerification] = useState(false);
+ const [otp, setOtp] = useState("");
+ const [registeredEmail, setRegisteredEmail] = useState("");
  const [formData, setFormData] = useState({
    enrollmentNo: "",
    fullName: "",
@@ -22,12 +26,56 @@ function Register() {
 
  useEffect(() => setShowPassword(false), [role]);
 
+  const validateEnrollmentNumber = (value) => {
+    
+    const enrollmentRegex = /^\d{2}BE[A-Z]{2}\d{5}$/;
+    if (!value) {
+      setEnrollmentError("");
+      return true;
+    }
+    if (!enrollmentRegex.test(value.trim().toUpperCase())) {
+      setEnrollmentError("Invalid format. Use: YYBEBRANCHTTT## (e.g., 23BEIT30055)");
+      return false;
+    }
+    setEnrollmentError("");
+    return true;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
+    
+    // Real-time validation for enrollment number
+    if (name === "enrollmentNo") {
+      validateEnrollmentNumber(value);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      if (!otp || otp.length !== 6) {
+        setError("OTP must be 6 digits");
+        setLoading(false);
+        return;
+      }
+
+      const response = await verifyEmail(registeredEmail, otp);
+      console.log("Email verified:", response);
+      alert("✅ Email verified successfully! You can now login.");
+      navigate('/login');
+    } catch (err) {
+      console.error("Verification error:", err);
+      setError(err.message || "OTP verification failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -36,6 +84,35 @@ function Register() {
     setError("");
 
     try {
+      // Student-specific validation
+      if (role === "student") {
+        if (!formData.enrollmentNo?.trim()) {
+          setError("Enrollment number is required");
+          setLoading(false);
+          return;
+        }
+        if (!validateEnrollmentNumber(formData.enrollmentNo)) {
+          setError("Please fix enrollment number format");
+          setLoading(false);
+          return;
+        }
+        if (!formData.fullName?.trim()) {
+          setError("Full name is required");
+          setLoading(false);
+          return;
+        }
+        if (!formData.email?.trim()) {
+          setError("Email is required");
+          setLoading(false);
+          return;
+        }
+        if (!formData.password || formData.password.length < 6) {
+          setError("Password must be at least 6 characters");
+          setLoading(false);
+          return;
+        }
+      }
+
       let dataToSend = {
         role,
       };
@@ -43,9 +120,9 @@ function Register() {
       if (role === "student") {
         dataToSend = {
           ...dataToSend,
-          enrollmentNo: formData.enrollmentNo,
-          fullName: formData.fullName,
-          email: formData.email,
+          enrollmentNo: formData.enrollmentNo.trim(),
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
           branch: "",
           skills: [],
@@ -65,17 +142,26 @@ function Register() {
 
       const response = await registerUser(dataToSend);
       console.log("Registration successful:", response);
-      // Handle success - redirect to login page
-      alert("Registration successful!");
-      setFormData({
-        enrollmentNo: "",
-        fullName: "",
-        email: "",
-        password: "",
-        companyName: "",
-        username: ""
-      });
-      navigate('/login');
+      
+      // For student, show OTP verification screen
+      if (role === "student") {
+        setRegisteredEmail(formData.email);
+        setShowOTPVerification(true);
+        setError("");
+        alert("✅ Registration successful! Check your email for the 6-digit OTP.");
+      } else {
+        // Company registration goes directly to login
+        alert("Registration successful!");
+        setFormData({
+          enrollmentNo: "",
+          fullName: "",
+          email: "",
+          password: "",
+          companyName: "",
+          username: ""
+        });
+        navigate('/login');
+      }
     } catch (err) {
       console.error("Registration error:", err);
       setError(err.message || "Registration failed. Please try again.");
@@ -103,9 +189,59 @@ function Register() {
       {/* Right Side - Form */}
       <div className="flex w-full lg:w-1/2 justify-center items-center bg-gray-50 p-8">
         <div className="w-full max-w-md">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-            Create Account
-          </h2>
+          
+          {/* OTP Verification Screen */}
+          {showOTPVerification ? (
+            <>
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+                ✉️ Verify Email
+              </h2>
+              
+              <form onSubmit={handleVerifyOTP} className="space-y-4 bg-white p-6 rounded-xl shadow-md">
+                {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    📧 Email: {registeredEmail}
+                  </label>
+                  <p className="text-xs text-gray-500 mb-4">We sent a 6-digit OTP to your email. Enter it below.</p>
+                  
+                  <input 
+                    type="text"
+                    maxLength="6"
+                    placeholder="Enter 6-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-4 py-3 text-center text-2xl tracking-widest border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Verifying..." : "Verify Email"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOTPVerification(false);
+                    setOtp("");
+                    setError("");
+                  }}
+                  className="w-full py-2 text-blue-600 font-medium hover:text-blue-700"
+                >
+                  Back to Registration
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+                Create Account
+              </h2>
 
           {/* Role Selector */}
           <div className="flex justify-center gap-3 mb-6">
@@ -129,19 +265,26 @@ function Register() {
             {/* STUDENT */}
             {role === "student" && (
               <>
-                <input 
-                  className={inputStyle} 
-                  placeholder="Enrollment No."
-                  name="enrollmentNo"
-                  value={formData.enrollmentNo}
-                  onChange={handleInputChange}
-                />
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2"> Enrollment No.</label>
+                  <input 
+                    className={`${inputStyle} border-2 ${enrollmentError ? 'border-red-400' : 'border-blue-300'} focus:border-blue-500 uppercase`}
+                    placeholder="e.g. 23BEIT30055"
+                    name="enrollmentNo"
+                    value={formData.enrollmentNo}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  {enrollmentError && <p className="text-xs text-red-600 mt-1">❌ {enrollmentError}</p>}
+                  {!enrollmentError && formData.enrollmentNo && <p className="text-xs text-green-600 mt-1">✅ Valid format</p>}
+                </div>
                 <input 
                   className={inputStyle} 
                   placeholder="Full Name"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
+                  required
                 />
                 <input 
                   className={inputStyle} 
@@ -149,15 +292,18 @@ function Register() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  type="email"
+                  required
                 />
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     className={`${inputStyle} pr-14`}
-                    placeholder="Password"
+                    placeholder="Password (min 6 characters)"
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    required
                   />
                   <button
                     type="button"
@@ -233,6 +379,8 @@ function Register() {
               Login
             </a>
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>

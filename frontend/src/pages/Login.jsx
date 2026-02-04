@@ -34,22 +34,32 @@ function Login() {
     setError("");
 
     try {
+      // Handle admin login separately (no API call needed)
+      if (role === 'admin') {
+        if(formData.email === ADMIN_EMAIL && formData.password === ADMIN_PASSWORD){
+          localStorage.setItem('userId', 'admin');
+          localStorage.setItem('role', 'admin');
+          navigate('/admin/dashboard');
+          return;
+        } else {
+          setError('Invalid admin credentials');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Handle student/company login (requires API call)
       let dataToSend = { role };
       if (role === 'student') {
         dataToSend = { ...dataToSend, enrollmentNo: formData.enrollmentNo, password: formData.password };
       } else if (role === 'company') {
         dataToSend = { ...dataToSend, email: formData.email, password: formData.password };
-      } else if (role === 'admin') {
-          if(formData.email == `${ADMIN_EMAIL}` && formData.password == `${ADMIN_PASSWORD}`){
-            navigate('/Admin/dashboard');
-          }
-        }
+      }
 
-
-        
       const response = await loginUser(dataToSend);
       console.log('Login success', response);
       localStorage.setItem('userId', response.data._id);
+      localStorage.setItem('role', role);
 
       // Store user data in localStorage
       if (role === 'student' && response.data._id) {
@@ -110,13 +120,17 @@ function Login() {
             {/* STUDENT */}
             {role === "student" && (
               <>
-                <input
-                  className={inputStyle}
-                  placeholder="Enrollment No."
-                  name="enrollmentNo"
-                  value={formData.enrollmentNo}
-                  onChange={handleInputChange}
-                />
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">📚 Enrollment No.</label>
+                  <input
+                    className={`${inputStyle} border-2 border-blue-300 focus:border-blue-500`}
+                    placeholder="e.g. 2023001"
+                    name="enrollmentNo"
+                    value={formData.enrollmentNo}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -125,6 +139,7 @@ function Login() {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    required
                   />
                   <button
                     type="button"

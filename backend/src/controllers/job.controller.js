@@ -273,7 +273,7 @@ export const updateApplicantStatus = asyncHandler(async(req,res)=>{
 })
 
 // Create job (Company posts job)
-// Validates required arrays and fields; status is approved (temp for demo)
+// Validates required arrays and fields; jobs are pending for admin approval
 export const createJob = asyncHandler(async(req,res)=>{
     const { companyId, companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline, status } = req.body;
 
@@ -301,7 +301,7 @@ export const createJob = asyncHandler(async(req,res)=>{
         skills,
         minCGPA,
         applicationDeadline,
-        status: ["draft","pending"].includes(status) ? status : "pending"
+        status: "pending"
     });
 
     return res.status(201).json(

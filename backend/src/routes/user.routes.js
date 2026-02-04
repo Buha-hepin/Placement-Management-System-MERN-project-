@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { 
     registerUser, 
     loginUser, 
+    verifyEmail,
     getStudentProfile, 
     updateStudentProfile, 
     updateStudentSkills, 
@@ -23,6 +24,7 @@ const router = Router();
 
 // Common Routes
 router.route('/register').post(registerUser);
+router.route('/verify-email').post(verifyEmail);
 router.route('/login').post(loginUser);
 
 // Student profile routes (Tera Sujal wala code)

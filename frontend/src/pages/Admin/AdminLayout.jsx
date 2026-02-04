@@ -27,7 +27,7 @@ const AdminLayout = () => {
     { path: '/admin/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/admin/students', name: 'Manage Students', icon: <Users size={20} /> },
     { path: '/admin/companies', name: 'Manage Companies', icon: <Building2 size={20} /> },
-    // { path: '/admin/jobs', name: 'Job Openings', icon: <Briefcase size={20} /> }, 
+    { path: '/admin/approve-jobs', name: 'Approve Jobs', icon: <Briefcase size={20} /> },
   ];
 
   return (
