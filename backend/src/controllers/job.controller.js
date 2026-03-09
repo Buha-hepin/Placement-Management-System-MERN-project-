@@ -5,6 +5,7 @@ import { apierror } from "../utils/apierror.js";
 import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import { sendNotificationEmail } from "../utils/emailSender.js";
 
 // Get all approved jobs for students
 // Query supports pagination + filters (search/location/jobType)
@@ -12,6 +13,8 @@ export const getAllApprovedJobs = asyncHandler(async(req,res)=>{
     const { page = 1, limit = 10, search = "", location = "", jobType = "" } = req.query;
 
     let filter = { status: "approved" };
+    const now = new Date();
+    filter.applicationDeadline = { $gte: now };
 
     if (search) {
         filter.$or = [
@@ -82,6 +85,10 @@ export const applyForJob = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Job not found");
     }
 
+    if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
+        throw new apierror(400, "Application deadline has passed");
+    }
+
     // Ensure not duplicate application
     const existing = await Application.findOne({ jobId, studentId });
     if (existing) {
@@ -130,6 +137,34 @@ export const getStudentApplications = asyncHandler(async(req,res)=>{
         new apiResponse(200, data, "Student applications retrieved successfully")
     );
 })
+
+// Withdraw application (student action)
+export const withdrawApplication = asyncHandler(async (req, res) => {
+    const { studentId, applicationId } = req.params;
+
+    if (!studentId || !applicationId) {
+        throw new apierror(400, "Student ID and Application ID are required");
+    }
+
+    const appDoc = await Application.findOne({ _id: applicationId, studentId });
+    if (!appDoc) {
+        throw new apierror(404, "Application not found");
+    }
+
+    if (appDoc.status === 'selected') {
+        throw new apierror(400, "Cannot withdraw a selected application");
+    }
+
+    await Application.deleteOne({ _id: applicationId });
+
+    if (appDoc.jobId) {
+        await Job.findByIdAndUpdate(appDoc.jobId, { $pull: { applicants: studentId } });
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, {}, "Application withdrawn successfully")
+    );
+});
 
 // Get applicants for a specific job (Company views applicants)
 export const getJobApplicants = asyncHandler(async(req,res)=>{
@@ -356,7 +391,26 @@ export const notifyApplicant = asyncHandler(async(req,res)=>{
         message: message || `Dear ${appDoc.studentId?.fullname}, your application status is '${appDoc.status}'.`
     };
     console.log('[DEV EMAIL]', payload);
-    return res.status(200).json(new apiResponse(200, payload, 'Notification logged'));
+
+    let emailResult = null;
+    if (payload.to) {
+        const subject = 'Placement Management System - Application Update';
+        const html = `
+            <div style="font-family: Arial, sans-serif; padding: 16px;">
+                <h3 style="color: #1e40af;">Application Update</h3>
+                <p>${payload.message}</p>
+                <p style="color: #6b7280; font-size: 12px;">This is an automated message.</p>
+            </div>
+        `;
+        try {
+            emailResult = await sendNotificationEmail(payload.to, subject, html, payload.message);
+        } catch (err) {
+            console.error('Email send failed:', err.message);
+            emailResult = { error: err.message };
+        }
+    }
+
+    return res.status(200).json(new apiResponse(200, { ...payload, emailResult }, 'Notification processed'));
 });
 
 // TEST ROUTE - Create pre-approved job (TEMPORARY - for testing only)
@@ -464,3 +518,25 @@ export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
         status
     }, 'Bulk status updated'));
 })
+
+// Delete job (company action)
+export const deleteJob = asyncHandler(async (req, res) => {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+        throw new apierror(400, "Job ID is required");
+    }
+
+    const result = await Job.deleteOne({ _id: jobId });
+    await Application.deleteMany({ jobId });
+
+    if (result.deletedCount === 0) {
+        return res.status(200).json(
+            new apiResponse(200, {}, "Job already removed")
+        );
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, {}, "Job deleted successfully")
+    );
+});

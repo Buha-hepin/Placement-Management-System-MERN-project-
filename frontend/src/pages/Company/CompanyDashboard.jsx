@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FiBriefcase, FiUsers, FiCheckCircle, FiClock, FiTrendingUp } from 'react-icons/fi';
+import { FiBriefcase, FiUsers, FiCheckCircle, FiClock, FiTrendingUp, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import { getCompanyJobs } from '../../services/api.js';
+import { getCompanyJobs, deleteCompanyJob } from '../../services/api.js';
+import EditJobModal from '../../components/EditJobModal.jsx';
 
 // CompanyDashboard: Overview with stats and recent applications
 export default function CompanyDashboard() {
   const [postedJobs, setPostedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editingJob, setEditingJob] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchCompanyJobs();
@@ -33,11 +36,42 @@ export default function CompanyDashboard() {
     }
   };
 
+  const handleEditClick = (job) => {
+    setEditingJob(job);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteClick = async (jobId) => {
+    if (!window.confirm('Are you sure you want to delete this job? All applications will be removed.')) {
+      return;
+    }
+
+    try {
+      const companyId = localStorage.getItem('companyId');
+      await deleteCompanyJob(companyId, jobId);
+      alert('✅ Job deleted successfully');
+      fetchCompanyJobs();
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      alert('Failed to delete job: ' + (err.message || ''));
+    }
+  };
+
+  const handleEditSuccess = () => {
+    fetchCompanyJobs();
+  };
+
+
   // Calculate stats
   const totalJobs = postedJobs.length;
   const approvedJobs = postedJobs.filter(job => job.status === 'approved').length;
   const pendingJobs = postedJobs.filter(job => job.status === 'pending').length;
   const totalApplicants = postedJobs.reduce((sum, job) => sum + (job.applicants?.length || 0), 0);
+
+  const isJobExpired = (job) => {
+    if (!job?.applicationDeadline) return false;
+    return new Date(job.applicationDeadline) < new Date();
+  };
 
   // Get recent applications (flatten all applicants from all jobs)
   const recentApplications = postedJobs
@@ -128,6 +162,9 @@ export default function CompanyDashboard() {
                   }`}>
                     {job.status === 'approved' ? '✓ Active' : job.status === 'pending' ? '⏳ Pending' : '✕ Rejected'}
                   </span>
+                  {job.status === 'approved' && isJobExpired(job) && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">Closed</span>
+                  )}
                 </div>
 
                 {/* Job Info */}
@@ -137,34 +174,58 @@ export default function CompanyDashboard() {
                 <p className="text-sm text-gray-600 mb-4">💰 {job.salary || 'Not specified'}</p>
 
                 {/* Applicants Count */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200 flex-wrap gap-3">
                   <div className="flex items-center gap-2">
                     <FiUsers className="text-gray-400" />
                     <span className="font-bold text-gray-900">{job.applicants?.length || 0} Applicants</span>
                   </div>
-                  
-                  {job.status === 'approved' && (
-                    <Link 
-                      to={`/company/applicants/${job._id}`}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+
+                  <div className="flex items-center gap-2">
+                    {job.status === 'approved' && (
+                      <Link 
+                        to={`/company/applicants/${job._id}`}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs font-medium"
+                      >
+                        View Apps
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => handleEditClick(job)}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-xs font-medium flex items-center gap-1"
                     >
-                      View Applications
-                    </Link>
-                  )}
-                  
-                  {job.status === 'pending' && (
-                    <span className="text-xs text-yellow-600">Awaiting approval</span>
-                  )}
-                  
-                  {job.status === 'rejected' && (
-                    <span className="text-xs text-red-600">Rejected by admin</span>
-                  )}
+                      <FiEdit2 size={14} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(job._id)}
+                      className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-xs font-medium flex items-center gap-1"
+                    >
+                      <FiTrash2 size={14} /> Delete
+                    </button>
+                  </div>
                 </div>
+
+                {job.status === 'pending' && (
+                  <div className="mt-3 text-xs text-yellow-600">Awaiting approval</div>
+                )}
+
+                {job.status === 'rejected' && (
+                  <div className="mt-3 text-xs text-red-600">Rejected by admin</div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Edit Job Modal */}
+      {showEditModal && editingJob && (
+        <EditJobModal
+          job={editingJob}
+          companyId={localStorage.getItem('companyId')}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }

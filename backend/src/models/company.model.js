@@ -80,6 +80,16 @@ const companySchema = new Schema({
         default: "",
     },
 
+    resetPasswordToken: {
+        type: String,
+        default: null
+    },
+
+    resetPasswordTokenExpiry: {
+        type: Date,
+        default: null
+    },
+
     refreshToken: {
         type: String,
     },

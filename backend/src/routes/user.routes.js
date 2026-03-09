@@ -4,6 +4,8 @@ import {
     registerUser, 
     loginUser, 
     verifyEmail,
+    forgotPassword,
+    resetPassword,
     getStudentProfile, 
     updateStudentProfile, 
     updateStudentSkills, 
@@ -19,6 +21,7 @@ import {
 } from '../controllers/company.controller.js';
 
 import { upload } from '../middlewares/multer.middleware.js';
+import { apierror } from '../utils/apierror.js';
 
 const router = Router();
 
@@ -26,12 +29,21 @@ const router = Router();
 router.route('/register').post(registerUser);
 router.route('/verify-email').post(verifyEmail);
 router.route('/login').post(loginUser);
+router.route('/forgot-password').post(forgotPassword);
+router.route('/reset-password').post(resetPassword);
 
 // Student profile routes (Tera Sujal wala code)
 router.route('/student/:studentId').get(getStudentProfile);
 router.route('/student/:studentId').put(updateStudentProfile);
 router.route('/student/:studentId/skills').put(updateStudentSkills);
-router.route('/student/:studentId/resume').post(upload.single('resume'), uploadResume);
+const resumeUpload = (req, res, next) => {
+    upload.single('resume')(req, res, (err) => {
+        if (err) return next(new apierror(400, err.message || 'Resume upload failed'));
+        return next();
+    });
+};
+
+router.route('/student/:studentId/resume').post(resumeUpload, uploadResume);
 
 // Company routes (Main branch wala code)
 router.route('/companyDetails/:id').get(fetchCompanyDetails);

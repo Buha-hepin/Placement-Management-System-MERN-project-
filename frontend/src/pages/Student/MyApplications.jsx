@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, MapPin, DollarSign, Calendar, ChevronDown, ChevronUp, Clock, TrendingUp } from 'lucide-react';
-import { getStudentApplications } from '../../services/api.js';
+import { Briefcase, MapPin, Calendar, ChevronDown, ChevronUp, Clock, TrendingUp } from 'lucide-react';
+import { getStudentApplications, withdrawApplication } from '../../services/api.js';
 
 // MyApplications: shows jobs student has applied to + per-application status
 export default function MyApplications() {
@@ -8,6 +8,7 @@ export default function MyApplications() {
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
+  const [withdrawingId, setWithdrawingId] = useState(null);
 
   const studentId = localStorage.getItem('studentId');
 
@@ -27,6 +28,28 @@ export default function MyApplications() {
       alert('Failed to load applications');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (application) => {
+    if (!application?.applicationId) {
+      alert('Unable to withdraw: missing application id');
+      return;
+    }
+
+    if (!window.confirm('Withdraw this application?')) {
+      return;
+    }
+
+    try {
+      setWithdrawingId(application.applicationId);
+      await withdrawApplication(studentId, application.applicationId);
+      setApplications(prev => prev.filter(app => app.applicationId !== application.applicationId));
+      alert('Application withdrawn successfully');
+    } catch (error) {
+      alert('Failed to withdraw: ' + (error.message || ''));
+    } finally {
+      setWithdrawingId(null);
     }
   };
 
@@ -126,7 +149,7 @@ export default function MyApplications() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="tshortlisted', 'selectay-600 text-sm font-medium">Rejected</p>
+                <p className="text-gray-600 text-sm font-medium">Rejected</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">{stats.rejected}</p>
               </div>
               <Briefcase className="text-red-500" size={32} />
@@ -136,7 +159,7 @@ export default function MyApplications() {
 
         {/* Filter Buttons */}
         <div className="flex gap-2 mb-6 flex-wrap">
-          {['All', 'pending', 'approved', 'rejected'].map(status => (
+          {['All', 'pending', 'shortlisted', 'selected', 'rejected'].map(status => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -166,13 +189,13 @@ export default function MyApplications() {
           ) : (
             filteredApplications.map(application => (
               <div
-                key={application._id}
+                key={application.applicationId || application._id}
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
               >
                 {/* Main Card */}
                 <div
                   className="p-6 cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === application._id ? null : application._id)}
+                  onClick={() => setExpandedId(expandedId === application.applicationId ? null : application.applicationId)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -192,8 +215,8 @@ export default function MyApplications() {
                         </div>
                         {application.salary && (
                           <div className="flex items-center gap-2 text-gray-600">
-                            <DollarSign size={16} />
-                            <span>{application.salary}</span>
+                            <span className="font-semibold text-gray-600">₹</span>
+                            <span>{application.salary} LPA</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2 text-gray-600">
@@ -209,7 +232,7 @@ export default function MyApplications() {
 
                     {/* Expand Button */}
                     <button className="ml-4 text-gray-400 hover:text-gray-600">
-                      {expandedId === application._id ? (
+                      {expandedId === application.applicationId ? (
                         <ChevronUp size={24} />
                       ) : (
                         <ChevronDown size={24} />
@@ -219,7 +242,7 @@ export default function MyApplications() {
                 </div>
 
                 {/* Expanded Details */}
-                {expandedId === application._id && (
+                {expandedId === application.applicationId && (
                   <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
                     <div className="space-y-4">
                       {/* Job Description */}
@@ -279,6 +302,18 @@ export default function MyApplications() {
                           </div>
                         </div>
                       </div>
+
+                      {['pending', 'shortlisted'].includes(application.status) && (
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleWithdraw(application)}
+                            disabled={withdrawingId === application.applicationId}
+                            className="px-4 py-2 text-sm bg-red-50 text-red-600 rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-60"
+                          >
+                            {withdrawingId === application.applicationId ? 'Withdrawing...' : 'Withdraw Application'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

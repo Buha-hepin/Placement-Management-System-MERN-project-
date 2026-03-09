@@ -2,6 +2,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -28,10 +30,14 @@ app.use(express.json());
 const PORT = process.env.PORT || 8000;
      
     
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.resolve(__dirname, '..', 'public');
+
 //configure express to parse JSON and URL-encoded data
 app.use(express.json({limit: '50mb' }));
 app.use(express.urlencoded({ extended: true , limit: '50mb'}));
-app.use(express.static('public'));
+app.use(express.static(publicDir));
 app.use(cookieParser()); 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 

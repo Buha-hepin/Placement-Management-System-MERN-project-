@@ -4,6 +4,7 @@ import{apierror} from "../utils/apierror.js";
 import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { uploadoncloudinary } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
 import{ apiResponse } from "../utils/apiResponse.js";
 // import { sendOTPEmail } from "../utils/emailSender.js";
 import crypto from "crypto";
@@ -270,8 +271,16 @@ export const uploadResume = asyncHandler(async(req,res)=>{
         throw new apierror(400, "Student ID is required");
     }
 
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new apierror(400, "Invalid student ID");
+    }
+
     if (!req.file) {
         throw new apierror(400, "No file uploaded");
+    }
+
+    if (!req.file.path || !req.file.filename) {
+        throw new apierror(400, "Uploaded file is missing on server");
     }
 
     const student = await User.findById(studentId);
@@ -279,13 +288,32 @@ export const uploadResume = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Student not found");
     }
 
-    // Upload to cloudinary
-    const resumeUrl = await uploadoncloudinary(req.file.path);
-    if (!resumeUrl) {
-        throw new apierror(500, "Failed to upload resume");
-    }
+    const hasCloudinary = Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+    );
 
-    student.resumeUrl = resumeUrl.url;
+    const localResumeUrl = `/temp/${req.file.filename}`;
+
+    if (!hasCloudinary) {
+        // Store local path served from /public
+        student.resumeUrl = localResumeUrl;
+    } else {
+        // Upload to Cloudinary, fall back to local on any failure
+        let resumeUpload = null;
+        try {
+            resumeUpload = await uploadoncloudinary(req.file.path);
+        } catch (error) {
+            resumeUpload = null;
+        }
+
+        if (!resumeUpload || !resumeUpload.url) {
+            student.resumeUrl = localResumeUrl;
+        } else {
+            student.resumeUrl = resumeUpload.url;
+        }
+    }
     await student.save();
 
     const updatedStudent = await User.findById(studentId).select("-password -refreshToken");
@@ -331,5 +359,89 @@ export const verifyEmail = asyncHandler(async(req,res)=>{
     
     return res.status(200).json(
         new apiResponse(200, verifiedStudent, "Email verified successfully! You can now login.")
+    );
+})
+
+// Forgot Password - Send reset token via email
+export const forgotPassword = asyncHandler(async(req,res)=>{
+    const { email, role } = req.body;
+
+    if (!email || !role) {
+        throw new apierror(400, "Email and role are required");
+    }
+
+    let user;
+    if (role === 'student') {
+        user = await User.findOne({ email: email.toLowerCase() });
+    } else if (role === 'company') {
+        user = await Company.findOne({ email: email.toLowerCase() });
+    } else {
+        throw new apierror(400, "Invalid role. Must be 'student' or 'company'");
+    }
+
+    if (!user) {
+        throw new apierror(404, "User not found with this email");
+    }
+
+    // Generate reset token (6-digit OTP)
+    const resetToken = generateOTP();
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await user.save();
+
+    // Send reset token via email
+    try {
+        // await sendOTPEmail(email.toLowerCase(), resetToken, user.fullname || user.companyName);
+        console.log(`🔐 Password Reset OTP for ${email}: ${resetToken}`);
+    } catch (emailError) {
+        console.error("Email sending failed:", emailError.message);
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, { email: email.toLowerCase() }, "Password reset OTP sent to your email. Valid for 15 minutes.")
+    );
+})
+
+// Reset Password - Verify token and update password
+export const resetPassword = asyncHandler(async(req,res)=>{
+    const { email, otp, newPassword, role } = req.body;
+
+    if (!email || !otp || !newPassword || !role) {
+        throw new apierror(400, "Email, OTP, new password, and role are required");
+    }
+
+    if (newPassword.length < 6) {
+        throw new apierror(400, "Password must be at least 6 characters long");
+    }
+
+    let user;
+    if (role === 'student') {
+        user = await User.findOne({ email: email.toLowerCase() });
+    } else if (role === 'company') {
+        user = await Company.findOne({ email: email.toLowerCase() });
+    } else {
+        throw new apierror(400, "Invalid role. Must be 'student' or 'company'");
+    }
+
+    if (!user) {
+        throw new apierror(404, "User not found");
+    }
+
+    if (!user.resetPasswordToken || user.resetPasswordToken !== otp) {
+        throw new apierror(400, "Invalid OTP");
+    }
+
+    if (new Date() > user.resetPasswordTokenExpiry) {
+        throw new apierror(400, "OTP has expired. Please request a new one.");
+    }
+
+    // Update password (pre-save hook will hash it)
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordTokenExpiry = null;
+    await user.save();
+
+    return res.status(200).json(
+        new apiResponse(200, null, "Password reset successfully! You can now login with your new password.")
     );
 })

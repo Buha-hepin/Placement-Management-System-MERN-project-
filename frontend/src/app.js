@@ -5,6 +5,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // 1. Auth Page
 import Login from './pages/Login'; // ✅ Path check kar lena (pages folder me hai na?)
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // 2. Company Pages & Layout
 import CompanyLayout from './components/CompanyLayout'; // ✅ Sidebar wala layout
@@ -31,6 +33,9 @@ function App() {
         
         {/* --- 1. LOGIN PAGE (Start yahi se hoga) --- */}
         <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
 
         {/* --- 2. STUDENT SECTION --- */}

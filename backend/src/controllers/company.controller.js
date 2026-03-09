@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asynchandler.js";
 import { apierror } from "../utils/apierror.js";
 import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
+import { Application } from "../models/application.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 
 // Get company details by ID
@@ -110,5 +111,57 @@ export const fetchJobsByCompany = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new apiResponse(200, jobs, "Jobs retrieved successfully")
+    );
+});
+
+// Edit a job posted by a company
+export const editCompanyJob = asyncHandler(async (req, res) => {
+    const { id, jobId } = req.params;
+    const { jobTitle, jobDescription, location, salary, jobType, skills, requirements, applicationDeadline } = req.body;
+
+    if (!id || !jobId) {
+        throw new apierror(400, "Company ID and Job ID are required");
+    }
+
+    const job = await Job.findOne({ _id: jobId, companyId: id });
+    if (!job) {
+        throw new apierror(404, "Job not found for this company");
+    }
+
+    // Update only provided fields
+    if (jobTitle) job.jobTitle = jobTitle;
+    if (jobDescription) job.jobDescription = jobDescription;
+    if (location) job.location = location;
+    if (salary) job.salary = salary;
+    if (jobType) job.jobType = jobType;
+    if (skills) job.skills = Array.isArray(skills) ? skills : [];
+    if (requirements) job.requirements = Array.isArray(requirements) ? requirements : [];
+    if (applicationDeadline) job.applicationDeadline = new Date(applicationDeadline);
+
+    const updatedJob = await job.save();
+
+    return res.status(200).json(
+        new apiResponse(200, updatedJob, "Job updated successfully")
+    );
+});
+
+// Delete a job posted by a company
+export const deleteCompanyJob = asyncHandler(async (req, res) => {
+    const { id, jobId } = req.params;
+
+    if (!id || !jobId) {
+        throw new apierror(400, "Company ID and Job ID are required");
+    }
+
+    const job = await Job.findOne({ _id: jobId, companyId: id });
+    if (!job) {
+        throw new apierror(404, "Job not found for this company");
+    }
+
+    await Job.deleteOne({ _id: jobId, companyId: id });
+    await Application.deleteMany({ jobId });
+
+    return res.status(200).json(
+        new apiResponse(200, {}, "Job deleted successfully")
     );
 });

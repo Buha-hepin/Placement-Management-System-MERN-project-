@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, MapPin, DollarSign, Clock, Search, Filter, ChevronRight } from 'lucide-react';
+import { FiBriefcase, FiMapPin, FiClock, FiSearch, FiFilter, FiChevronRight } from 'react-icons/fi';
 import { getAllApprovedJobs, applyForJob, getStudentApplications } from '../../services/api.js';
 
 // JobListings: browse approved jobs with filters and apply action
@@ -90,6 +90,10 @@ export default function JobListings() {
   };
 
   const isJobApplied = (jobId) => appliedJobs.includes(jobId);
+  const isJobExpired = (job) => {
+    if (!job?.applicationDeadline) return false;
+    return new Date(job.applicationDeadline) < new Date();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
@@ -169,7 +173,7 @@ export default function JobListings() {
               onClick={() => setShowFilters(!showFilters)}
               className="lg:hidden flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm mb-4"
             >
-              <Filter size={18} /> Filters
+              <FiFilter size={18} /> Filters
             </button>
 
             {/* Jobs List */}
@@ -194,8 +198,10 @@ export default function JobListings() {
                         <h3 className="text-xl font-bold text-gray-900">{job.jobTitle}</h3>
                         <p className="text-blue-600 font-semibold">{job.companyName}</p>
                       </div>
-                      <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">
-                        {job.jobType}
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                        isJobExpired(job) ? 'bg-gray-100 text-gray-600' : 'bg-blue-50 text-blue-700'
+                      }`}>
+                        {isJobExpired(job) ? 'Closed' : job.jobType}
                       </span>
                     </div>
 
@@ -204,21 +210,21 @@ export default function JobListings() {
                     {/* Job Details */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       <div className="flex items-center gap-2 text-sm">
-                        <MapPin size={16} className="text-gray-500" />
+                        <FiMapPin size={16} className="text-gray-500" />
                         <span className="text-gray-700">{job.location}</span>
                       </div>
                       {job.salary && (
                         <div className="flex items-center gap-2 text-sm">
-                          <DollarSign size={16} className="text-gray-500" />
-                          <span className="text-gray-700">{job.salary}</span>
+                          <span className="text-gray-500 font-semibold">₹</span>
+                          <span className="text-gray-700">{job.salary} LPA</span>
                         </div>
                       )}
                       <div className="flex items-center gap-2 text-sm">
-                        <Briefcase size={16} className="text-gray-500" />
+                        <FiBriefcase size={16} className="text-gray-500" />
                         <span className="text-gray-700">Min CGPA: {job.minCGPA}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
-                        <Clock size={16} className="text-gray-500" />
+                        <FiClock size={16} className="text-gray-500" />
                         <span className="text-gray-700">{new Date(job.applicationDeadline).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -246,19 +252,21 @@ export default function JobListings() {
                         onClick={() => setSelectedJob(selectedJob === job._id ? null : job._id)}
                         className="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition font-semibold"
                       >
-                        <ChevronRight size={18} />
+                        <FiChevronRight size={18} />
                         View Details
                       </button>
                       <button
                         onClick={() => handleApplyJob(job._id)}
-                        disabled={isJobApplied(job._id) || loading}
+                        disabled={isJobApplied(job._id) || loading || isJobExpired(job)}
                         className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
                           isJobApplied(job._id)
                             ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                            : isJobExpired(job)
+                              ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                       >
-                        {isJobApplied(job._id) ? '✓ Applied' : 'Apply Now'}
+                        {isJobApplied(job._id) ? '✓ Applied' : isJobExpired(job) ? 'Closed' : 'Apply Now'}
                       </button>
                     </div>
 
