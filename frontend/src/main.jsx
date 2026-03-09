@@ -8,6 +8,8 @@ import './index.css'
 import Intro from './pages/Intro';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // --- STUDENT IMPORTS ---
 import StudentDashboard from './pages/Student/StudentDashboard';
@@ -44,6 +46,8 @@ const router = createBrowserRouter(
       <Route path='/' element={<Intro/>} />
       <Route path='/register' element={<Register/>}/>
       <Route path='/login' element={<Login/>}/>
+      <Route path='/forgot-password' element={<ForgotPassword/>}/>
+      <Route path='/reset-password' element={<ResetPassword/>}/>
       
       {/* Student Route */}
       <Route path="/student" element={<StudentDashboard/>} />

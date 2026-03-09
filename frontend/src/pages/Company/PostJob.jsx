@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiSave, FiSend, FiMapPin, FiDollarSign, FiBell } from 'react-icons/fi';
+import { FiSend, FiMapPin, FiBell } from 'react-icons/fi';
 import { createJob } from '../../services/api.js';
 
 // PostJob: form to create a job; maps UI fields to backend Job schema
@@ -74,7 +74,24 @@ export default function PostJob() {
               <InputGroup label="Application Deadline" name="deadline" value={jobDetails.deadline} onChange={handleInputChange} placeholder="YYYY-MM-DD" type="date" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-               <InputGroup label="Salary Package" name="salary" value={jobDetails.salary} onChange={handleInputChange} placeholder="e.g. 18 - 24 LPA" icon={<FiDollarSign />} />
+               <div>
+                 <label className="block text-sm font-semibold text-gray-700 mb-2">Salary Package (INR, LPA)</label>
+                 <div className="relative">
+                   <input
+                     type="number"
+                     name="salary"
+                     min="0"
+                     step="0.1"
+                     inputMode="decimal"
+                     value={jobDetails.salary}
+                     onChange={(e) => setJobDetails({ ...jobDetails, salary: e.target.value })}
+                     placeholder="e.g. 18"
+                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm pl-10 pr-14"
+                   />
+                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg">₹</span>
+                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500">LPA</span>
+                 </div>
+               </div>
                <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Job Type</label>
                   <div className="grid grid-cols-3 gap-2 md:gap-3">
@@ -100,34 +117,6 @@ export default function PostJob() {
           </section>
           
           <div className="flex flex-col md:flex-row gap-4">
-             <button onClick={async () => {
-               try {
-                 setLoading(true);
-                 const companyId = localStorage.getItem('companyId');
-                 const companyData = JSON.parse(localStorage.getItem('companyData') || '{}');
-                 if (!companyId) { alert('Please login as company first!'); return; }
-                 const jobData = {
-                   companyId,
-                   companyName: companyData.companyName || jobDetails.companyName,
-                   jobTitle: jobDetails.role,
-                   jobDescription: jobDetails.description,
-                   location: jobDetails.location,
-                   salary: jobDetails.salary,
-                   jobType: jobDetails.type,
-                   skills: jobDetails.skills ? jobDetails.skills.split(',').map(s => s.trim()) : [],
-                   requirements: jobDetails.requirements ? jobDetails.requirements.split(',').map(r => r.trim()) : [],
-                   applicationDeadline: jobDetails.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                   minCGPA: 6.0,
-                   status: 'draft'
-                 };
-                 await createJob(jobData);
-                 alert('📝 Saved as Draft');
-               } catch (e) {
-                 alert('Failed to save draft: ' + (e.message || ''));
-               } finally { setLoading(false); }
-             }} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
-               <FiSave /> Save as Draft
-             </button>
              <button onClick={handlePublishSubmit} disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                <FiSend /> {loading ? 'Publishing...' : 'Publish Now'}
              </button>
@@ -142,7 +131,7 @@ export default function PostJob() {
              
              <div className="space-y-3 text-xs text-gray-600 mb-4 pb-4 border-b">
                <div className="flex items-center gap-2"><FiMapPin className="text-blue-600" /> {jobDetails.location || 'Location'}</div>
-               <div className="flex items-center gap-2"><FiDollarSign className="text-green-600" /> {jobDetails.salary || 'Salary'}</div>
+               <div className="flex items-center gap-2"><span className="text-green-600 font-semibold">₹</span> {jobDetails.salary || 'Salary'}</div>
                <div className="flex items-center gap-2">📋 {jobDetails.type || 'Job Type'}</div>
                <div className="flex items-center gap-2">📅 Deadline: {jobDetails.deadline || 'Not set'}</div>
              </div>

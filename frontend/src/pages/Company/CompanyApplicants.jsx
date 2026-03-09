@@ -28,6 +28,15 @@ export default function CompanyApplicants() {
   const [selected, setSelected] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('shortlisted');
+  const [showProfile, setShowProfile] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  const resolveResumeUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return `${base}${url}`;
+  };
 
   useEffect(() => {
     fetchCompanyJobs();
@@ -91,6 +100,11 @@ export default function CompanyApplicants() {
     } catch (e) {
       alert('Failed to update status: ' + (e.message || '')); 
     }
+  };
+
+  const openProfile = (student) => {
+    setSelectedStudent(student || null);
+    setShowProfile(true);
   };
 
   return (
@@ -262,13 +276,13 @@ export default function CompanyApplicants() {
                       <button 
                         className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg" 
                         title="View Profile"
-                        onClick={() => alert(`View profile: ${app.student?.fullname}`)}
+                        onClick={() => openProfile(app.student)}
                       >
                         <FiEye />
                       </button>
                       {app.student?.resumeUrl && (
                         <button
-                          onClick={() => { setResumeUrl(app.student.resumeUrl); setShowResume(true); }}
+                          onClick={() => { setResumeUrl(resolveResumeUrl(app.student.resumeUrl)); setShowResume(true); }}
                           className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
                           title="Preview Resume"
                         >
@@ -327,6 +341,63 @@ export default function CompanyApplicants() {
                 </div>
                 <div className="p-3 border-t flex justify-end gap-2">
                   <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm bg-green-600 text-white rounded">Download</a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Profile Preview Modal */}
+          {showProfile && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowProfile(false)}>
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="p-4 border-b flex justify-between items-center">
+                  <h4 className="font-bold text-gray-800 text-sm">Student Profile</h4>
+                  <button onClick={() => setShowProfile(false)} className="px-3 py-1 text-sm border rounded">Close</button>
+                </div>
+                <div className="p-6 space-y-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Name</p>
+                    <p className="font-semibold text-gray-900">{selectedStudent?.fullname || 'N/A'}</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-500">Email</p>
+                      <p className="font-medium text-gray-900">{selectedStudent?.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Enrollment No.</p>
+                      <p className="font-medium text-gray-900">{selectedStudent?.enrollmentNo || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Branch</p>
+                      <p className="font-medium text-gray-900">{selectedStudent?.branch || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">CGPA</p>
+                      <p className="font-medium text-gray-900">{selectedStudent?.cgpa || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Phone</p>
+                      <p className="font-medium text-gray-900">{selectedStudent?.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Skills</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {selectedStudent?.skills && selectedStudent.skills.length > 0 ? (
+                        selectedStudent.skills.map((skill, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded">
+                            {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-xs">No skills listed</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 border-t flex justify-end">
+                  <button onClick={() => setShowProfile(false)} className="px-4 py-2 text-sm bg-gray-100 rounded">Done</button>
                 </div>
               </div>
             </div>

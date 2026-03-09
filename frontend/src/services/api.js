@@ -93,6 +93,62 @@ export async function verifyEmail(email, otp) {
   return data;
 }
 
+export async function forgotPassword(email, role) {
+  const url = `${BASE_URL}/api/v1/users/forgot-password`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, role }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function resetPassword(email, otp, newPassword, role) {
+  const url = `${BASE_URL}/api/v1/users/reset-password`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp, newPassword, role }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 // Student Profile APIs
 export async function getStudentProfile(studentId) {
   const url = `${BASE_URL}/api/v1/users/student/${studentId}`;
@@ -311,6 +367,34 @@ export async function getStudentApplications(studentId) {
   return data;
 }
 
+// Withdraw a student application
+export async function withdrawApplication(studentId, applicationId) {
+  const url = `${BASE_URL}/api/v1/jobs/student/${studentId}/applications/${applicationId}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 // Get jobs posted by company
 export async function getCompanyJobs(companyId) {
   const url = `${BASE_URL}/api/v1/companies/${companyId}/jobs`;
@@ -320,6 +404,32 @@ export async function getCompanyJobs(companyId) {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Delete a job posted by a company
+export async function deleteCompanyJob(companyId, jobId) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/delete`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include'
   });
 
@@ -427,6 +537,35 @@ export async function createJob(jobData) {
 
   const res = await fetch(url, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(jobData),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Edit an existing job
+export async function editJob(companyId, jobId, jobData) {
+  const url = `${BASE_URL}/api/v1/companies/${companyId}/jobs/${jobId}`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },

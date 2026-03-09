@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Search, Briefcase, MapPin, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, Search, Briefcase, MapPin } from 'lucide-react';
 
 export default function ApproveJobs() {
   const [jobs, setJobs] = useState([]);
@@ -141,8 +141,8 @@ export default function ApproveJobs() {
                       <span>{job.location}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
-                      <DollarSign size={18} className="text-gray-400" />
-                      <span>{job.salary}</span>
+                      <span className="text-gray-400 font-semibold">₹</span>
+                      <span>{job.salary} LPA</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <span className="text-sm">📋 {job.jobType}</span>

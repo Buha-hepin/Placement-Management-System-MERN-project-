@@ -121,7 +121,7 @@ function Login() {
             {role === "student" && (
               <>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-2">📚 Enrollment No.</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-2"> Enrollment No.</label>
                   <input
                     className={`${inputStyle} border-2 border-blue-300 focus:border-blue-500`}
                     placeholder="e.g. 2023001"
@@ -222,6 +222,15 @@ function Login() {
                 
               {loading ? 'Signing in...' : `Sign in as ${role}`}
             </button>
+
+            {/* Forgot Password Link - Only for Student & Company */}
+            {role !== 'admin' && (
+              <p className="text-center text-gray-600 text-sm mt-2">
+                <a href="/forgot-password" className="text-blue-700 font-medium hover:underline">
+                  Forgot Password?
+                </a>
+              </p>
+            )}
           </form>
 
           <p className="text-center text-gray-500 mt-4">

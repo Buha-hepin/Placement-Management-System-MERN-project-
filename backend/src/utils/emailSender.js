@@ -1,18 +1,25 @@
-// import nodemailer from 'nodemailer';
-//
-// // Initialize email transporter
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail',
-//     auth: {
-//         user: process.env.EMAIL_USER,
-//         pass: process.env.EMAIL_PASSWORD
-//     }
-// });
+import nodemailer from 'nodemailer';
+
+const createTransporter = () => {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        return null;
+    }
+
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+        }
+    });
+};
+
+const transporter = createTransporter();
 
 // Send OTP email to student
 export const sendOTPEmail = async (email, otp, fullName) => {
     // Skip email if not configured
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    if (!transporter) {
         console.log(`⚠️  Email not configured. OTP for ${email}: ${otp}`);
         return true; // Don't fail registration
     }
@@ -77,9 +84,32 @@ export const sendOTPEmail = async (email, otp, fullName) => {
     }
 };
 
+// General purpose notification email (used for applicant notifications)
+export const sendNotificationEmail = async (to, subject, html, text = '') => {
+    if (!transporter) {
+        console.log(`⚠️  Email not configured. Would send to ${to}: ${subject}`);
+        return { skipped: true };
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to,
+        subject,
+        html,
+        text
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return { skipped: false, response: info.response };
+};
+
 // Verify transporter connection
 export const verifyEmailConfig = async () => {
     try {
+        if (!transporter) {
+            console.log('⚠️  Email not configured');
+            return false;
+        }
         await transporter.verify();
         console.log('✅ Email service configured successfully');
         return true;

@@ -5,9 +5,11 @@ import {
     getJobDetails, 
     applyForJob,
     getStudentApplications,
+    withdrawApplication,
     getJobApplicants,
     updateApplicantStatus,
     updateApplicantsBulkStatus,
+    deleteJob,
     createJob,
     createTestJob,
     getPendingJobs,
@@ -22,6 +24,7 @@ const router = Router();
 // Specific routes FIRST (before :jobId)
 router.route('/browse').get(getAllApprovedJobs);
 router.route('/student/:studentId/applications').get(getStudentApplications);
+router.route('/student/:studentId/applications/:applicationId').delete(withdrawApplication);
 router.route('/admin/pending').get(getPendingJobs);
 router.route('/admin/:jobId/approve').put(approveJob);
 router.route('/admin/:jobId/reject').put(rejectJob);
@@ -33,6 +36,8 @@ router.route('/test/create').post(createTestJob);
 
 // Generic routes LAST
 router.route('/:jobId').get(getJobDetails);
+router.route('/:jobId').delete(deleteJob);
+router.route('/:jobId/delete').post(deleteJob);
 router.route('/:jobId/apply').post(applyForJob);
 router.route('/:jobId/applicants').get(getJobApplicants);
 router.route('/:jobId/applicants/:applicationId/status').put(updateApplicantStatus);

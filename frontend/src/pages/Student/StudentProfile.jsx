@@ -18,6 +18,13 @@ const StudentProfile = () => {
   const [resumeFile, setResumeFile] = useState(null);
   const [uploadingResume, setUploadingResume] = useState(false);
 
+  const resolveResumeUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return `${base}${url}`;
+  };
+
   // Get stored student ID from localStorage
   const studentId = localStorage.getItem('studentId');
 
@@ -103,7 +110,7 @@ const StudentProfile = () => {
       alert('Resume uploaded successfully');
     } catch (error) {
       console.error('Failed to upload resume:', error);
-      alert('Failed to upload resume');
+      alert(error?.message || 'Failed to upload resume');
     } finally {
       setUploadingResume(false);
     }
@@ -263,7 +270,7 @@ const StudentProfile = () => {
                     <div className="bg-red-100 p-2 rounded-lg text-red-600"><FileText size={20}/></div>
                     <div><p className="text-sm font-semibold text-gray-800">Resume</p></div>
                   </div>
-                  <a href={profileData.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800"><Download size={18}/></a>
+                  <a href={resolveResumeUrl(profileData.resumeUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800"><Download size={18}/></a>
                 </div>
                ) : (
                 <p className="text-gray-500 text-sm">No resume uploaded</p>
