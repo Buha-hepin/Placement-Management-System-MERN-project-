@@ -5,6 +5,7 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
+import { compareAcademicRecords, normalizeSemesterRecord } from "../utils/academicCompare.js";
 
 // Admin Dashboard - Get statistics
 export const getAdminDashboard = asyncHandler(async (req, res) => {
@@ -55,6 +56,101 @@ export const getAllStudents = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new apiResponse(200, { students, totalCount, page, limit }, "Students retrieved successfully")
+    );
+});
+
+// Get student academics with student/admin records and mismatch details
+export const getStudentAcademicDetails = asyncHandler(async (req, res) => {
+    const { studentId } = req.params;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    const student = await User.findById(studentId).select(
+        "fullname email enrollmentNo branch cgpa semesterAcademicRecords adminAcademicRecords academicVerification"
+    );
+
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, student, "Student academic details retrieved successfully")
+    );
+});
+
+// Update official admin academic records for a student
+export const updateStudentOfficialAcademics = asyncHandler(async (req, res) => {
+    const { studentId } = req.params;
+    const { adminAcademicRecords = [] } = req.body;
+
+    if (!studentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    if (!Array.isArray(adminAcademicRecords)) {
+        throw new apierror(400, "adminAcademicRecords must be an array");
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    const normalizedAdmin = adminAcademicRecords
+        .map(normalizeSemesterRecord)
+        .filter((record) => record.semester >= 1 && record.semester <= 8)
+        .sort((a, b) => a.semester - b.semester);
+
+    student.adminAcademicRecords = normalizedAdmin;
+
+    const verification = compareAcademicRecords(student.semesterAcademicRecords || [], student.adminAcademicRecords || []);
+    student.academicVerification = {
+        hasMismatch: verification.hasMismatch,
+        mismatchCount: verification.mismatchCount,
+        mismatchSemesters: verification.mismatchSemesters,
+        mismatchDetails: verification.mismatchDetails,
+        lastComparedAt: verification.comparedAt
+    };
+
+    const updatedStudent = await student.save();
+    const payload = await User.findById(updatedStudent._id).select(
+        "fullname email enrollmentNo semesterAcademicRecords adminAcademicRecords academicVerification"
+    );
+
+    return res.status(200).json(
+        new apiResponse(200, payload, "Official academic records updated and compared successfully")
+    );
+});
+
+// List students with academic mismatches for quick admin review
+export const getAcademicMismatchStudents = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, search = "" } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter = {
+        "academicVerification.hasMismatch": true
+    };
+
+    if (search) {
+        filter.$or = [
+            { fullname: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { enrollmentNo: { $regex: search, $options: "i" } }
+        ];
+    }
+
+    const students = await User.find(filter)
+        .select("fullname email enrollmentNo branch cgpa academicVerification")
+        .sort({ "academicVerification.mismatchCount": -1, updatedAt: -1 })
+        .skip(skip)
+        .limit(Number(limit));
+
+    const totalCount = await User.countDocuments(filter);
+
+    return res.status(200).json(
+        new apiResponse(200, { students, totalCount, page: Number(page), limit: Number(limit) }, "Mismatch students retrieved successfully")
     );
 });
 

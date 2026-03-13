@@ -9,7 +9,7 @@ const applicationSchema = new Schema(
     studentId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     status: {
       type: String,
-      enum: ["pending", "shortlisted", "rejected", "selected"],
+      enum: ["pending", "shortlisted", "rejected", "selected", "no-show"],
       default: "pending",
     },
     appliedAt: { type: Date, default: Date.now },

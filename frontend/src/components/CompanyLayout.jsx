@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { FiBriefcase, FiUsers, FiSettings, FiLogOut, FiPlus, FiMenu, FiX } from 'react-icons/fi';
+import { FiBriefcase, FiUsers, FiSettings, FiLogOut, FiPlus, FiMenu, FiX, FiBook } from 'react-icons/fi';
 
 export default function CompanyLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,6 +42,7 @@ export default function CompanyLayout() {
           
           <SidebarItem to="/company/dashboard" icon={<FiBriefcase />} label="Manage Jobs" active={location.pathname === '/company/dashboard'} />
           <SidebarItem to="/company/post-job" icon={<FiPlus />} label="Post New Job" active={location.pathname === '/company/post-job'} />
+          <SidebarItem to="/company/create-test" icon={<FiBook />} label="Create Aptitude Test" active={location.pathname === '/company/create-test'} />
           <SidebarItem to="/company/profile" icon={<FiSettings />} label="Company Profile" active={location.pathname === '/company/profile'} /> 
           
           </nav>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiBriefcase, FiMapPin, FiClock, FiSearch, FiFilter, FiChevronRight } from 'react-icons/fi';
-import { getAllApprovedJobs, applyForJob, getStudentApplications } from '../../services/api.js';
+import { getAllApprovedJobs, applyForJob, getStudentApplications, setJobInterest, getCompanyPublicProfile } from '../../services/api.js';
 
 // JobListings: browse approved jobs with filters and apply action
 export default function JobListings() {
@@ -8,6 +8,8 @@ export default function JobListings() {
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -35,7 +37,8 @@ export default function JobListings() {
         10,
         filters.search,
         filters.location,
-        filters.jobType === 'All' ? '' : filters.jobType
+        filters.jobType === 'All' ? '' : filters.jobType,
+        studentId || ''
       );
       setJobs(response.data.jobs);
       setTotalPages(response.data.totalPages);
@@ -66,12 +69,62 @@ export default function JobListings() {
       setLoading(true);
       await applyForJob(jobId, studentId);
       setAppliedJobs([...appliedJobs, jobId]);
-      alert('Applied successfully!');
+      alert('Applied successfully! Notice: If you apply and miss the placement process 3 times, your account will be blocked from future applications.');
     } catch (error) {
       console.error('Failed to apply:', error);
       alert(error.message || 'Failed to apply for job');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInterestChange = async (jobId, interest) => {
+    if (!studentId) {
+      alert('Please login first');
+      return;
+    }
+
+    try {
+      const response = await setJobInterest(jobId, studentId, interest);
+      setJobs((prev) => prev.map((job) => {
+        if (job._id !== jobId) return job;
+
+        const interestedCount =
+          interest === 'interested'
+            ? (job.interestedCount || 0) + (job.interestStatus === 'interested' ? 0 : 1)
+            : Math.max(0, (job.interestedCount || 0) - (job.interestStatus === 'interested' ? 1 : 0));
+
+        const notInterestedCount =
+          interest === 'not-interested'
+            ? (job.notInterestedCount || 0) + (job.interestStatus === 'not-interested' ? 0 : 1)
+            : Math.max(0, (job.notInterestedCount || 0) - (job.interestStatus === 'not-interested' ? 1 : 0));
+
+        return {
+          ...job,
+          interestStatus: interest,
+          interestedCount,
+          notInterestedCount,
+        };
+      }));
+
+      if (interest === 'interested') {
+        alert('Marked as interested. You can apply now. Notice: If you apply but do not attend the placement process 3 times, your account will be blocked automatically.');
+      } else {
+        alert(response?.message || 'Marked as not interested.');
+      }
+      fetchJobs();
+    } catch (error) {
+      alert(error.message || 'Failed to update interest');
+    }
+  };
+
+  const handleViewCompanyProfile = async (companyId) => {
+    try {
+      const response = await getCompanyPublicProfile(companyId);
+      setSelectedCompany(response.data || null);
+      setShowCompanyModal(true);
+    } catch (error) {
+      alert(error.message || 'Failed to load company profile');
     }
   };
 
@@ -90,6 +143,10 @@ export default function JobListings() {
   };
 
   const isJobApplied = (jobId) => appliedJobs.includes(jobId);
+  const isInterested = (job) => job?.interestStatus === 'interested';
+  const isNotInterested = (job) => job?.interestStatus === 'not-interested';
+  const isInterestLocked = (job) => isInterested(job) || isNotInterested(job);
+  const isEligible = (job) => job?.isEligible !== false;
   const isJobExpired = (job) => {
     if (!job?.applicationDeadline) return false;
     return new Date(job.applicationDeadline) < new Date();
@@ -197,6 +254,12 @@ export default function JobListings() {
                       <div>
                         <h3 className="text-xl font-bold text-gray-900">{job.jobTitle}</h3>
                         <p className="text-blue-600 font-semibold">{job.companyName}</p>
+                        <button
+                          onClick={() => handleViewCompanyProfile(job.companyId)}
+                          className="mt-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                        >
+                          View Company Profile
+                        </button>
                       </div>
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                         isJobExpired(job) ? 'bg-gray-100 text-gray-600' : 'bg-blue-50 text-blue-700'
@@ -229,6 +292,13 @@ export default function JobListings() {
                       </div>
                     </div>
 
+                    {!isEligible(job) && (
+                      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                        <p className="font-semibold">You are not eligible for this job.</p>
+                        <p className="mt-1">Reason: {(job.eligibilityReasons || []).join(' ')}</p>
+                      </div>
+                    )}
+
                     {/* Skills */}
                     <div className="mb-4">
                       <p className="text-sm font-semibold text-gray-700 mb-2">Required Skills:</p>
@@ -247,7 +317,29 @@ export default function JobListings() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={() => handleInterestChange(job._id, 'interested')}
+                        disabled={loading || isJobExpired(job) || isInterestLocked(job) || !isEligible(job)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition ${
+                          isInterested(job)
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700 hover:bg-green-50'
+                        } ${isJobExpired(job) || isInterestLocked(job) || !isEligible(job) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Interested
+                      </button>
+                      <button
+                        onClick={() => handleInterestChange(job._id, 'not-interested')}
+                        disabled={loading || isJobExpired(job) || isInterestLocked(job) || !isEligible(job)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition ${
+                          isNotInterested(job)
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700 hover:bg-red-50'
+                        } ${isJobExpired(job) || isInterestLocked(job) || !isEligible(job) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Not Interested
+                      </button>
                       <button
                         onClick={() => setSelectedJob(selectedJob === job._id ? null : job._id)}
                         className="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition font-semibold"
@@ -257,16 +349,32 @@ export default function JobListings() {
                       </button>
                       <button
                         onClick={() => handleApplyJob(job._id)}
-                        disabled={isJobApplied(job._id) || loading || isJobExpired(job)}
+                        disabled={isJobApplied(job._id) || loading || isJobExpired(job) || isNotInterested(job) || !isInterested(job) || !isEligible(job)}
                         className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
                           isJobApplied(job._id)
                             ? 'bg-green-100 text-green-700 cursor-not-allowed'
                             : isJobExpired(job)
                               ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                              : !isEligible(job)
+                                ? 'bg-red-100 text-red-700 cursor-not-allowed'
+                              : isNotInterested(job)
+                                ? 'bg-red-100 text-red-700 cursor-not-allowed'
+                                : !isInterested(job)
+                                  ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                         }`}
                       >
-                        {isJobApplied(job._id) ? '✓ Applied' : isJobExpired(job) ? 'Closed' : 'Apply Now'}
+                        {isJobApplied(job._id)
+                          ? '✓ Applied'
+                          : isJobExpired(job)
+                            ? 'Closed'
+                            : !isEligible(job)
+                              ? 'Not Eligible'
+                            : isNotInterested(job)
+                              ? 'Not Interested'
+                              : !isInterested(job)
+                                ? 'Mark Interested to Apply'
+                                : 'Apply Now'}
                       </button>
                     </div>
 
@@ -291,6 +399,24 @@ export default function JobListings() {
                             </span>
                           ))}
                         </div>
+
+                        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                          <span>Interested: <strong>{job.interestedCount || 0}</strong></span>
+                          <span className="text-xs text-gray-500">{isInterestLocked(job) ? 'Choice locked' : 'Choose once to lock'}</span>
+                          <span className="text-xs text-gray-500">Open company profile from top link</span>
+                        </div>
+
+                        {!isEligible(job) && (
+                          <div className="mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+                            Not eligible: {(job.eligibilityReasons || []).join(' ')}
+                          </div>
+                        )}
+
+                        {isInterested(job) && !isJobApplied(job._id) && (
+                          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                            Notice: If you apply and miss the placement process 3 times, your account will be blocked automatically.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -332,6 +458,23 @@ export default function JobListings() {
             )}
           </div>
         </div>
+
+        {showCompanyModal && selectedCompany && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setShowCompanyModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Company Profile</h3>
+              <div className="space-y-2 text-sm text-gray-700">
+                <p><strong>Name:</strong> {selectedCompany.companyName || 'N/A'}</p>
+                <p><strong>Email:</strong> {selectedCompany.email || 'N/A'}</p>
+                <p><strong>Location:</strong> {selectedCompany.location || 'N/A'}</p>
+                <p><strong>About:</strong> {selectedCompany.about || 'No details provided'}</p>
+              </div>
+              <div className="mt-6 text-right">
+                <button onClick={() => setShowCompanyModal(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

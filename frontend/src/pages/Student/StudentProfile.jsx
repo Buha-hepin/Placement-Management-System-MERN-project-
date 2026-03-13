@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { Edit2, FileText, Upload, Download, X, Check } from 'lucide-react'; 
 import { getStudentProfile, updateStudentProfile, updateStudentSkills, uploadResume } from '../../services/api.js';
 
+const buildDefaultSemesters = () => (
+  Array.from({ length: 8 }, (_, index) => ({
+    semester: index + 1,
+    spi: '',
+    cpi: '',
+    backlogCount: 0,
+    backlogSubjects: []
+  }))
+);
+
+const mergeSemesterRecords = (records = []) => {
+  const base = buildDefaultSemesters();
+  if (!Array.isArray(records)) return base;
+
+  const map = new Map(records.map((r) => [Number(r.semester), r]));
+  return base.map((entry) => {
+    const found = map.get(entry.semester);
+    if (!found) return entry;
+    return {
+      semester: entry.semester,
+      spi: found.spi ?? '',
+      cpi: found.cpi ?? '',
+      backlogCount: Number(found.backlogCount || 0),
+      backlogSubjects: Array.isArray(found.backlogSubjects) ? found.backlogSubjects : []
+    };
+  });
+};
+
 const StudentProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -12,7 +40,8 @@ const StudentProfile = () => {
     branch: '',
     cgpa: '',
     phone: '',
-    skills: []
+    skills: [],
+    semesterAcademicRecords: buildDefaultSemesters()
   });
   const [skillInput, setSkillInput] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
@@ -47,7 +76,8 @@ const StudentProfile = () => {
           branch: data.branch || '',
           cgpa: data.cgpa || '',
           phone: data.phone || '',
-          skills: data.skills || []
+          skills: data.skills || [],
+          semesterAcademicRecords: mergeSemesterRecords(data.semesterAcademicRecords || [])
         });
       }
     } catch (error) {
@@ -85,7 +115,20 @@ const StudentProfile = () => {
   const handleSaveProfile = async () => {
     try {
       setLoading(true);
-      await updateStudentProfile(studentId, formData);
+      await updateStudentProfile(studentId, {
+        fullname: formData.fullname,
+        email: formData.email,
+        branch: formData.branch,
+        cgpa: formData.cgpa,
+        phone: formData.phone,
+        semesterAcademicRecords: formData.semesterAcademicRecords.map((record) => ({
+          semester: record.semester,
+          spi: Number(record.spi || 0),
+          cpi: Number(record.cpi || 0),
+          backlogCount: Number(record.backlogCount || 0),
+          backlogSubjects: Array.isArray(record.backlogSubjects) ? record.backlogSubjects : []
+        }))
+      });
       await updateStudentSkills(studentId, formData.skills);
       await fetchStudentProfile();
       setIsEditing(false);
@@ -114,6 +157,25 @@ const StudentProfile = () => {
     } finally {
       setUploadingResume(false);
     }
+  };
+
+  const handleSemesterRecordChange = (semester, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      semesterAcademicRecords: prev.semesterAcademicRecords.map((record) => {
+        if (record.semester !== semester) return record;
+
+        if (field === 'backlogSubjects') {
+          const subjects = String(value || '')
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+          return { ...record, backlogSubjects: subjects, backlogCount: subjects.length };
+        }
+
+        return { ...record, [field]: value };
+      })
+    }));
   };
 
   if (!profileData) {
@@ -256,6 +318,96 @@ const StudentProfile = () => {
                   </div>
                 </div>
                )}
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3 border-b pb-2">
+              <h3 className="font-bold text-gray-900">Semester Academic Records (Sem 1 to 8)</h3>
+              {profileData.academicVerification?.hasMismatch ? (
+                <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-700">
+                  Mismatch Found ({profileData.academicVerification?.mismatchCount || 0})
+                </span>
+              ) : (
+                <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
+                  Verified / No mismatch
+                </span>
+              )}
+            </div>
+
+            {profileData.academicVerification?.hasMismatch && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                Admin has flagged differences in semester(s): {(profileData.academicVerification?.mismatchSemesters || []).join(', ') || 'N/A'}.
+              </div>
+            )}
+
+            <div className="overflow-x-auto border border-gray-100 rounded-xl">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="p-2 text-left">Semester</th>
+                    <th className="p-2 text-left">SPI</th>
+                    <th className="p-2 text-left">CPI</th>
+                    <th className="p-2 text-left">Backlogs</th>
+                    <th className="p-2 text-left">Backlog Subjects (comma separated)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {formData.semesterAcademicRecords.map((record) => (
+                    <tr key={record.semester} className="border-t border-gray-100">
+                      <td className="p-2 font-semibold text-gray-700">Sem {record.semester}</td>
+                      <td className="p-2">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            step="0.01"
+                            value={record.spi}
+                            onChange={(e) => handleSemesterRecordChange(record.semester, 'spi', e.target.value)}
+                            className="w-24 border border-gray-300 rounded px-2 py-1"
+                          />
+                        ) : (
+                          <span>{record.spi === '' ? 'N/A' : record.spi}</span>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            step="0.01"
+                            value={record.cpi}
+                            onChange={(e) => handleSemesterRecordChange(record.semester, 'cpi', e.target.value)}
+                            className="w-24 border border-gray-300 rounded px-2 py-1"
+                          />
+                        ) : (
+                          <span>{record.cpi === '' ? 'N/A' : record.cpi}</span>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        <span className="inline-block px-2 py-1 rounded bg-amber-50 text-amber-700 font-medium">
+                          {record.backlogCount || 0}
+                        </span>
+                      </td>
+                      <td className="p-2">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={(record.backlogSubjects || []).join(', ')}
+                            onChange={(e) => handleSemesterRecordChange(record.semester, 'backlogSubjects', e.target.value)}
+                            className="w-full border border-gray-300 rounded px-2 py-1"
+                            placeholder="e.g. Math-2, Physics"
+                          />
+                        ) : (
+                          <span>{(record.backlogSubjects || []).length ? record.backlogSubjects.join(', ') : 'None'}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

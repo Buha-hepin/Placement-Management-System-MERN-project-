@@ -2,6 +2,15 @@ import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import path from 'path';
 
+const isConfiguredValue = (value) => {
+    if (typeof value !== 'string') {
+        return Boolean(value);
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return Boolean(normalized) && !['undefined', 'null', 'your_api_key', 'your_api_secret', 'your_cloud_name'].includes(normalized);
+};
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -17,11 +26,11 @@ cloudinary.config({
             return null;
         }
 
-        const hasCloudinary = Boolean(
-            process.env.CLOUDINARY_CLOUD_NAME &&
-            process.env.CLOUDINARY_API_KEY &&
+        const hasCloudinary = [
+            process.env.CLOUDINARY_CLOUD_NAME,
+            process.env.CLOUDINARY_API_KEY,
             process.env.CLOUDINARY_API_SECRET
-        );
+        ].every(isConfiguredValue);
 
         if (!hasCloudinary) {
             // Fallback to local static file when Cloudinary is not configured.
@@ -43,9 +52,10 @@ cloudinary.config({
 
         return response;
         } catch (error) {
-            // Keep local file so caller can fall back to local storage
-            console.error('Error uploading to Cloudinary:', error);
-            return null;
+            // Cloudinary upload failed — fall back to serving the file locally.
+            console.error('Error uploading to Cloudinary:', error.message || error);
+            const filename = path.basename(filePath);
+            return { url: `/temp/${filename}`, local: true };
         }
 };
 

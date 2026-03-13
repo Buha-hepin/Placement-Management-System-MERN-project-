@@ -3,6 +3,9 @@ import { Router } from 'express';
 import {
     getAdminDashboard,
     getAllStudents,
+    getStudentAcademicDetails,
+    updateStudentOfficialAcademics,
+    getAcademicMismatchStudents,
     getAllCompanies,
     getCompanyJobsByAdmin,
     deleteStudent,
@@ -20,6 +23,9 @@ router.route('/dashboard').get(getAdminDashboard);
 
 // Students management
 router.route('/students').get(getAllStudents);
+router.route('/students/mismatches').get(getAcademicMismatchStudents);
+router.route('/students/:studentId/academics').get(getStudentAcademicDetails);
+router.route('/students/:studentId/official-academics').put(updateStudentOfficialAcademics);
 router.route('/students/:studentId').delete(deleteStudent);
 
 // Companies management

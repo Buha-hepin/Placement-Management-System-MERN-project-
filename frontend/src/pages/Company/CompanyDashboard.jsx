@@ -175,9 +175,14 @@ export default function CompanyDashboard() {
 
                 {/* Applicants Count */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 flex-wrap gap-3">
-                  <div className="flex items-center gap-2">
-                    <FiUsers className="text-gray-400" />
-                    <span className="font-bold text-gray-900">{job.applicants?.length || 0} Applicants</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FiUsers className="text-gray-400" />
+                      <span className="font-bold text-gray-900">{job.applicants?.length || 0} Applicants</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Interested: {job.interestedStudents?.length || 0} | Not Interested: {job.notInterestedStudents?.length || 0}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">

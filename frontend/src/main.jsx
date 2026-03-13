@@ -20,6 +20,10 @@ import CompanyDashboard from './pages/Company/CompanyDashboard';
 import PostJob from './pages/Company/PostJob';
 import CompanyProfile from './pages/Company/CompanyProfile';
 import CompanyApplicants from './pages/Company/CompanyApplicants';
+import CreateAptitudeTest from './pages/Company/CreateAptitudeTest';
+
+// --- TEST ROUTES ---
+import TakeAptitudeTest from './pages/Student/TakeAptitudeTest';
 
 // --- ✅ ADMIN IMPORTS (Corrected) ---
 // Duplicate hata diya aur sub-pages add kiye
@@ -51,11 +55,13 @@ const router = createBrowserRouter(
       
       {/* Student Route */}
       <Route path="/student" element={<StudentDashboard/>} />
+      <Route path="/student/test/:testId" element={<TakeAptitudeTest/>} />
       
       {/* --- COMPANY ROUTES --- */}
       <Route path="/company" element={<CompanyLayout/>}>
           <Route path="dashboard" element={<CompanyDashboard/>} />
           <Route path="post-job" element={<PostJob/>} />
+          <Route path="create-test" element={<CreateAptitudeTest/>} />
           <Route path="profile" element={<CompanyProfile/>} />
           <Route path="applicants/:jobId?" element={<CompanyApplicants/>} />
       </Route>

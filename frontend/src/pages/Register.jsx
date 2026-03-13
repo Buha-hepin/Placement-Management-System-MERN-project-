@@ -150,17 +150,26 @@ function Register() {
         setError("");
         alert("✅ Registration successful! Check your email for the 6-digit OTP.");
       } else {
-        // Company registration goes directly to login
-        alert("Registration successful!");
+        const createdCompany = response?.data;
+        if (createdCompany?._id) {
+          localStorage.setItem('userId', createdCompany._id);
+          localStorage.setItem('companyId', createdCompany._id);
+          localStorage.setItem('role', 'company');
+          localStorage.setItem('userRole', 'company');
+          localStorage.setItem('companyData', JSON.stringify(createdCompany));
+        }
+
+        alert("Registration successful! Complete your company profile.");
         setFormData({
           enrollmentNo: "",
           fullName: "",
           email: "",
           password: "",
           companyName: "",
-          username: ""
+          username: "",
+          Location: ""
         });
-        navigate('/login');
+        navigate('/company/profile');
       }
     } catch (err) {
       console.error("Registration error:", err);

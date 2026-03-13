@@ -5,7 +5,7 @@ import { createJob } from '../../services/api.js';
 // PostJob: form to create a job; maps UI fields to backend Job schema
 export default function PostJob() {
   const [jobDetails, setJobDetails] = useState({
-    companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: ''
+    companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: '', minCGPA: '6.0'
   });
   
   const [isPublishToggleOn, setIsPublishToggleOn] = useState(false);
@@ -38,7 +38,7 @@ export default function PostJob() {
         skills: jobDetails.skills ? jobDetails.skills.split(',').map(s => s.trim()) : [],
         requirements: jobDetails.requirements ? jobDetails.requirements.split(',').map(r => r.trim()) : [],
         applicationDeadline: jobDetails.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        minCGPA: 6.0
+        minCGPA: Number(jobDetails.minCGPA || 0)
       };
 
       await createJob(jobData);
@@ -46,7 +46,7 @@ export default function PostJob() {
       
       // Reset form
       setJobDetails({
-        companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: ''
+        companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: '', minCGPA: '6.0'
       });
     } catch (error) {
       console.error('Error posting job:', error);
@@ -92,6 +92,23 @@ export default function PostJob() {
                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500">LPA</span>
                  </div>
                </div>
+               <div>
+                 <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum CGPA</label>
+                 <div className="relative">
+                   <input
+                     type="number"
+                     name="minCGPA"
+                     min="0"
+                     max="10"
+                     step="0.1"
+                     inputMode="decimal"
+                     value={jobDetails.minCGPA}
+                     onChange={handleInputChange}
+                     placeholder="e.g. 6.5"
+                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                   />
+                 </div>
+               </div>
                <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Job Type</label>
                   <div className="grid grid-cols-3 gap-2 md:gap-3">
@@ -132,6 +149,7 @@ export default function PostJob() {
              <div className="space-y-3 text-xs text-gray-600 mb-4 pb-4 border-b">
                <div className="flex items-center gap-2"><FiMapPin className="text-blue-600" /> {jobDetails.location || 'Location'}</div>
                <div className="flex items-center gap-2"><span className="text-green-600 font-semibold">₹</span> {jobDetails.salary || 'Salary'}</div>
+               <div className="flex items-center gap-2">🎓 Min CGPA: {jobDetails.minCGPA || '0.0'}</div>
                <div className="flex items-center gap-2">📋 {jobDetails.type || 'Job Type'}</div>
                <div className="flex items-center gap-2">📅 Deadline: {jobDetails.deadline || 'Not set'}</div>
              </div>

@@ -82,6 +82,26 @@ const jobSchema = new Schema({
         default: []
     },
 
+    // Optional: link to aptitude test
+    aptitudeTestId: {
+        type: Schema.Types.ObjectId,
+        ref: "AptitudeTest",
+        default: null
+    },
+
+    // Track student interest and applications
+    interestedStudents: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+        default: []
+    },
+
+    notInterestedStudents: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+        default: []
+    },
+
     postedAt: {
         type: Date,
         default: Date.now

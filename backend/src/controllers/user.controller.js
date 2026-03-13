@@ -6,8 +6,40 @@ import { Company } from "../models/company.model.js";
 import { uploadoncloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
 import{ apiResponse } from "../utils/apiResponse.js";
-// import { sendOTPEmail } from "../utils/emailSender.js";
-import crypto from "crypto";
+import { sendOTPEmail, sendPasswordResetEmail, sendNotificationEmail } from "../utils/emailSender.js";
+import { compareAcademicRecords, normalizeSemesterRecord } from "../utils/academicCompare.js";
+
+const ACADEMIC_MISMATCH_ALERT_THRESHOLD = 3;
+
+const sendAcademicMismatchAlertToAdmin = async ({ student, verification }) => {
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    if (!adminEmail) return { skipped: true };
+
+    const details = Array.isArray(verification?.mismatchDetails)
+        ? verification.mismatchDetails.slice(0, 8)
+        : [];
+
+    const detailLines = details
+        .map((item) => `<li>Sem ${item.semester} | ${item.field}: ${item.reason}</li>`)
+        .join("");
+
+    const subject = `Academic mismatch alert: ${student?.fullname || "Student"}`;
+    const text = `Student ${student?.fullname || "N/A"} (${student?.enrollmentNo || "N/A"}) has ${verification?.mismatchCount || 0} academic mismatches.`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 16px;">
+            <h3 style="color: #b91c1c;">Student Academic Mismatch Alert</h3>
+            <p><strong>Name:</strong> ${student?.fullname || "N/A"}</p>
+            <p><strong>Enrollment:</strong> ${student?.enrollmentNo || "N/A"}</p>
+            <p><strong>Email:</strong> ${student?.email || "N/A"}</p>
+            <p><strong>Mismatch Count:</strong> ${verification?.mismatchCount || 0}</p>
+            <p><strong>Mismatch Semesters:</strong> ${(verification?.mismatchSemesters || []).join(", ") || "N/A"}</p>
+            ${detailLines ? `<p><strong>Top mismatch details:</strong></p><ul>${detailLines}</ul>` : ""}
+            <p style="color: #6b7280; font-size: 12px;">Generated automatically by Placement Management System.</p>
+        </div>
+    `;
+
+    return sendNotificationEmail(adminEmail, subject, html, text);
+};
 
 // Generate 6-digit OTP
 const generateOTP = () => {
@@ -66,14 +98,12 @@ export const registerUser = asyncHandler(async(req,res)=>{
                 throw new apierror(500, "User creation failed");
             }
 
-            // Send OTP email
+            // Critical path: if OTP email fails, rollback user and return error.
             try {
-                // await sendOTPEmail(email.toLowerCase(), user.emailVerificationToken, fullName);
-                console.log(`📧 OTP for ${email}: ${user.emailVerificationToken}`);
+                await sendOTPEmail(email.toLowerCase(), user.emailVerificationToken, fullName);
             } catch (emailError) {
-                console.error("Email sending failed:", emailError.message);
-                // Even if email fails, registration succeeds but user sees warning
-                // In production, you might want to retry or show error
+                await User.deleteOne({ _id: user._id });
+                throw new apierror(502, "Unable to send verification OTP email. Please try again.");
             }
 
             return res.status(201).json(new apiResponse(201, createdUser, "Student registered successfully. Please verify your email with the OTP sent to your email address."));
@@ -208,7 +238,7 @@ export const getStudentProfile = asyncHandler(async(req,res)=>{
 // Update student profile
 export const updateStudentProfile = asyncHandler(async(req,res)=>{
     const { studentId } = req.params;
-    const { fullname, email, branch, cgpa, phone } = req.body;
+    const { fullname, email, branch, cgpa, phone, semesterAcademicRecords } = req.body;
 
     if (!studentId) {
         throw new apierror(400, "Student ID is required");
@@ -219,12 +249,45 @@ export const updateStudentProfile = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Student not found");
     }
 
+    const previousMismatchCount = Number(student?.academicVerification?.mismatchCount || 0);
+    const previousHasMismatch = Boolean(student?.academicVerification?.hasMismatch);
+
     // Update only provided fields
     if (fullname) student.fullname = fullname;
     if (email) student.email = email;
     if (branch) student.branch = branch;
     if (cgpa) student.cgpa = cgpa;
     if (phone) student.phone = phone;
+    if (Array.isArray(semesterAcademicRecords)) {
+        const normalized = semesterAcademicRecords
+            .map(normalizeSemesterRecord)
+            .filter((record) => record.semester >= 1 && record.semester <= 8)
+            .sort((a, b) => a.semester - b.semester);
+
+        student.semesterAcademicRecords = normalized;
+    }
+
+    const verification = compareAcademicRecords(student.semesterAcademicRecords || [], student.adminAcademicRecords || []);
+    student.academicVerification = {
+        hasMismatch: verification.hasMismatch,
+        mismatchCount: verification.mismatchCount,
+        mismatchSemesters: verification.mismatchSemesters,
+        mismatchDetails: verification.mismatchDetails,
+        lastComparedAt: verification.comparedAt
+    };
+
+    const crossedAlertThreshold =
+        verification.hasMismatch &&
+        verification.mismatchCount >= ACADEMIC_MISMATCH_ALERT_THRESHOLD &&
+        (!previousHasMismatch || previousMismatchCount < ACADEMIC_MISMATCH_ALERT_THRESHOLD);
+
+    if (crossedAlertThreshold) {
+        try {
+            await sendAcademicMismatchAlertToAdmin({ student, verification });
+        } catch (err) {
+            console.error("Academic mismatch admin alert failed:", err.message);
+        }
+    }
 
     const updatedStudent = await student.save();
     const profileData = await User.findById(updatedStudent._id).select("-password -refreshToken");
@@ -389,12 +452,14 @@ export const forgotPassword = asyncHandler(async(req,res)=>{
     user.resetPasswordTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     await user.save();
 
-    // Send reset token via email
+    // Critical path: reset OTP email must be delivered.
     try {
-        // await sendOTPEmail(email.toLowerCase(), resetToken, user.fullname || user.companyName);
-        console.log(`🔐 Password Reset OTP for ${email}: ${resetToken}`);
+        await sendPasswordResetEmail(email.toLowerCase(), resetToken, user.fullname || user.companyName);
     } catch (emailError) {
-        console.error("Email sending failed:", emailError.message);
+        user.resetPasswordToken = null;
+        user.resetPasswordTokenExpiry = null;
+        await user.save();
+        throw new apierror(502, "Unable to send reset OTP email. Please try again.");
     }
 
     return res.status(200).json(
@@ -445,3 +510,4 @@ export const resetPassword = asyncHandler(async(req,res)=>{
         new apiResponse(200, null, "Password reset successfully! You can now login with your new password.")
     );
 })
+

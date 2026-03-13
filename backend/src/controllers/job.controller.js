@@ -4,13 +4,162 @@ import { asyncHandler } from "../utils/asynchandler.js";
 import { apierror } from "../utils/apierror.js";
 import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
+import { User } from "../models/user.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { sendNotificationEmail } from "../utils/emailSender.js";
+
+const buildStatusUpdateMessage = (name, status, jobTitle) => {
+    const safeName = name || "Student";
+    const safeJob = jobTitle || "your application";
+    const safeStatus = status || "updated";
+    return `Dear ${safeName}, your application for ${safeJob} has been updated to '${safeStatus}'.`;
+};
+
+const sendStatusUpdateEmail = async ({ to, name, status, jobTitle }) => {
+    if (!to) return { skipped: true };
+
+    const message = buildStatusUpdateMessage(name, status, jobTitle);
+    const subject = "Placement Management System - Application Status Updated";
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 16px;">
+            <h3 style="color: #1e40af;">Application Status Update</h3>
+            <p>${message}</p>
+            <p style="color: #6b7280; font-size: 12px;">This is an automated message.</p>
+        </div>
+    `;
+
+    return sendNotificationEmail(to, subject, html, message);
+};
+
+const sendJobModerationEmail = async ({ to, companyName, jobTitle, decision, rejectionReason }) => {
+    if (!to) return { skipped: true };
+
+    const safeCompanyName = companyName || "Company";
+    const safeJobTitle = jobTitle || "your job post";
+    const isApproved = decision === "approved";
+    const subject = `Job ${isApproved ? "Approved" : "Rejected"}: ${safeJobTitle}`;
+    const reasonLine = !isApproved && rejectionReason
+        ? `<p><strong>Reason:</strong> ${rejectionReason}</p>`
+        : "";
+
+    const text = isApproved
+        ? `Dear ${safeCompanyName}, your job '${safeJobTitle}' has been approved and is now visible to students.`
+        : `Dear ${safeCompanyName}, your job '${safeJobTitle}' has been rejected.${rejectionReason ? ` Reason: ${rejectionReason}` : ""}`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 16px;">
+            <h3 style="color: #1e40af;">Job Moderation Update</h3>
+            <p>Dear ${safeCompanyName},</p>
+            <p>Your job post <strong>${safeJobTitle}</strong> has been <strong>${decision}</strong>.</p>
+            ${reasonLine}
+            <p style="color: #6b7280; font-size: 12px;">This is an automated message.</p>
+        </div>
+    `;
+
+    return sendNotificationEmail(to, subject, html, text);
+};
+
+const hasStudentId = (arr = [], studentId = "") => arr.some((id) => String(id) === String(studentId));
+
+const evaluateJobEligibility = (student, job) => {
+    const reasons = [];
+
+    if (!student) {
+        reasons.push("Student profile was not found.");
+        return { isEligible: false, reasons };
+    }
+
+    if (student.isPlacementBlocked) {
+        reasons.push("You are blocked from placement activity due to repeated no-shows.");
+    }
+
+    const requiredCgpa = Number(job?.minCGPA || 0);
+    const studentCgpa = Number(student?.cgpa);
+    const hasValidCgpa = Number.isFinite(studentCgpa);
+
+    if (requiredCgpa > 0 && !hasValidCgpa) {
+        reasons.push(`Your profile does not have CGPA updated. Minimum required CGPA is ${requiredCgpa}.`);
+    }
+
+    if (requiredCgpa > 0 && hasValidCgpa && studentCgpa < requiredCgpa) {
+        reasons.push(`Your CGPA ${studentCgpa} is below the minimum required CGPA ${requiredCgpa}.`);
+    }
+
+    return {
+        isEligible: reasons.length === 0,
+        reasons
+    };
+};
+
+const sendIneligibilityEmail = async ({ to, name, jobTitle, companyName, reasons = [] }) => {
+    if (!to || reasons.length === 0) return { skipped: true };
+
+    const safeName = name || "Student";
+    const safeJobTitle = jobTitle || "this job";
+    const safeCompanyName = companyName || "the company";
+    const reasonItems = reasons.map((reason) => `<li>${reason}</li>`).join("");
+    const text = `Dear ${safeName}, you are not eligible for ${safeJobTitle} at ${safeCompanyName}. Reasons: ${reasons.join(" ")}`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 16px;">
+            <h3 style="color: #b91c1c;">Not Eligible For Job Application</h3>
+            <p>Dear ${safeName},</p>
+            <p>You are currently not eligible for <strong>${safeJobTitle}</strong> at <strong>${safeCompanyName}</strong>.</p>
+            <p><strong>Reason${reasons.length > 1 ? "s" : ""}:</strong></p>
+            <ul>${reasonItems}</ul>
+            <p style="color: #6b7280; font-size: 12px;">Please update your student profile if the above information is incomplete or incorrect.</p>
+        </div>
+    `;
+
+    return sendNotificationEmail(to, `Not Eligible: ${safeJobTitle}`, html, text);
+};
+
+const applyNoShowPenalty = async (studentId) => {
+    const student = await User.findById(studentId);
+    if (!student) return null;
+
+    student.noShowCount = Number(student.noShowCount || 0) + 1;
+    if (student.noShowCount >= 3) {
+        student.isPlacementBlocked = true;
+        if (!student.placementBlockedAt) {
+            student.placementBlockedAt = new Date();
+        }
+    }
+
+    await student.save();
+    return {
+        noShowCount: student.noShowCount,
+        isPlacementBlocked: student.isPlacementBlocked
+    };
+};
+
+const attachInterestMeta = (job, studentId = "", student = null) => {
+    const doc = typeof job.toObject === "function" ? job.toObject() : job;
+    const interestedCount = (doc.interestedStudents || []).length;
+    const notInterestedCount = (doc.notInterestedStudents || []).length;
+    const interestStatus = studentId
+        ? hasStudentId(doc.interestedStudents || [], studentId)
+            ? "interested"
+            : hasStudentId(doc.notInterestedStudents || [], studentId)
+                ? "not-interested"
+                : "none"
+        : "none";
+
+    const eligibility = student ? evaluateJobEligibility(student, doc) : { isEligible: true, reasons: [] };
+
+    return {
+        ...doc,
+        interestedCount,
+        notInterestedCount,
+        interestStatus,
+        isEligible: eligibility.isEligible,
+        eligibilityReasons: eligibility.reasons
+    };
+};
 
 // Get all approved jobs for students
 // Query supports pagination + filters (search/location/jobType)
 export const getAllApprovedJobs = asyncHandler(async(req,res)=>{
-    const { page = 1, limit = 10, search = "", location = "", jobType = "" } = req.query;
+    const { page = 1, limit = 10, search = "", location = "", jobType = "", studentId = "" } = req.query;
 
     let filter = { status: "approved" };
     const now = new Date();
@@ -41,9 +190,16 @@ export const getAllApprovedJobs = asyncHandler(async(req,res)=>{
 
     const totalJobs = await Job.countDocuments(filter);
 
+    let student = null;
+    if (studentId) {
+        student = await User.findById(studentId).select('cgpa isPlacementBlocked').lean();
+    }
+
+    const jobsWithMeta = jobs.map((job) => attachInterestMeta(job, studentId, student));
+
     return res.status(200).json(
         new apiResponse(200, {
-            jobs,
+            jobs: jobsWithMeta,
             totalJobs,
             page: parseInt(page),
             totalPages: Math.ceil(totalJobs / limit)
@@ -55,6 +211,7 @@ export const getAllApprovedJobs = asyncHandler(async(req,res)=>{
 // Returns job and basic company info
 export const getJobDetails = asyncHandler(async(req,res)=>{
     const { jobId } = req.params;
+    const { studentId = "" } = req.query;
 
     if (!jobId) {
         throw new apierror(400, "Job ID is required");
@@ -65,8 +222,12 @@ export const getJobDetails = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Job not found");
     }
 
+    const student = studentId
+        ? await User.findById(studentId).select('cgpa isPlacementBlocked').lean()
+        : null;
+
     return res.status(200).json(
-        new apiResponse(200, job, "Job details retrieved successfully")
+        new apiResponse(200, attachInterestMeta(job, studentId, student), "Job details retrieved successfully")
     );
 })
 
@@ -80,9 +241,41 @@ export const applyForJob = asyncHandler(async(req,res)=>{
         throw new apierror(400, "Job ID and Student ID are required");
     }
 
+    const student = await User.findById(studentId).select('fullname email cgpa isPlacementBlocked noShowCount');
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
     const job = await Job.findById(jobId);
     if (!job) {
         throw new apierror(404, "Job not found");
+    }
+
+    const eligibility = evaluateJobEligibility(student, job);
+    if (!eligibility.isEligible) {
+        try {
+            await sendIneligibilityEmail({
+                to: student.email,
+                name: student.fullname,
+                jobTitle: job.jobTitle,
+                companyName: job.companyName,
+                reasons: eligibility.reasons
+            });
+        } catch (err) {
+            console.error('Auto ineligibility email failed:', err.message);
+        }
+
+        throw new apierror(403, `You are not eligible for this job. ${eligibility.reasons.join(' ')}`.trim());
+    }
+
+    const isNotInterested = hasStudentId(job.notInterestedStudents || [], studentId);
+    if (isNotInterested) {
+        throw new apierror(403, "You marked this job as not interested. Change to interested to apply.");
+    }
+
+    const isInterested = hasStudentId(job.interestedStudents || [], studentId);
+    if (!isInterested) {
+        throw new apierror(400, "Please mark the job as interested before applying.");
     }
 
     if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
@@ -108,6 +301,73 @@ export const applyForJob = asyncHandler(async(req,res)=>{
         new apiResponse(200, application, "Applied for job successfully")
     );
 })
+
+// Mark student interest state for a job.
+export const setJobInterest = asyncHandler(async (req, res) => {
+    const { jobId } = req.params;
+    const { studentId, interest } = req.body;
+
+    if (!jobId || !studentId || !interest) {
+        throw new apierror(400, "Job ID, student ID and interest are required");
+    }
+
+    if (!["interested", "not-interested"].includes(interest)) {
+        throw new apierror(400, "interest must be 'interested' or 'not-interested'");
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+        throw new apierror(404, "Job not found");
+    }
+
+    const student = await User.findById(studentId).select('fullname email cgpa isPlacementBlocked');
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
+
+    const eligibility = evaluateJobEligibility(student, job);
+    if (!eligibility.isEligible) {
+        try {
+            await sendIneligibilityEmail({
+                to: student.email,
+                name: student.fullname,
+                jobTitle: job.jobTitle,
+                companyName: job.companyName,
+                reasons: eligibility.reasons
+            });
+        } catch (err) {
+            console.error('Auto ineligibility email failed:', err.message);
+        }
+
+        throw new apierror(403, `You are not eligible for this job. ${eligibility.reasons.join(' ')}`.trim());
+    }
+
+    const alreadyInterested = hasStudentId(job.interestedStudents || [], studentId);
+    const alreadyNotInterested = hasStudentId(job.notInterestedStudents || [], studentId);
+    if (alreadyInterested || alreadyNotInterested) {
+        throw new apierror(409, "Interest choice is locked. You can choose only once.");
+    }
+
+    if (interest === "interested") {
+        job.interestedStudents.push(studentId);
+    } else {
+        job.notInterestedStudents.push(studentId);
+    }
+    await job.save();
+
+    const responseData = {
+        jobId: job._id,
+        interestStatus: interest,
+        interestedCount: (job.interestedStudents || []).length,
+        notInterestedCount: (job.notInterestedStudents || []).length
+    };
+
+    const msg = interest === "interested"
+        ? "Marked as interested. You can apply now."
+        : "Marked as not interested.";
+
+    return res.status(200).json(new apiResponse(200, responseData, msg));
+});
 
 // Get jobs applied by student
 // Joins Application with Job; flattens to job fields + application status
@@ -290,21 +550,41 @@ export const updateApplicantStatus = asyncHandler(async(req,res)=>{
     const { jobId, applicationId } = req.params;
     const { status } = req.body;
 
-    if (!['pending','shortlisted','rejected','selected'].includes(status)) {
+    if (!['pending','shortlisted','rejected','selected','no-show'].includes(status)) {
         throw new apierror(400, 'Invalid status');
     }
 
-    const appDoc = await Application.findOneAndUpdate(
-        { _id: applicationId, jobId },
-        { status },
-        { new: true }
-    ).populate({ path: 'studentId', select: 'fullname email branch cgpa phone skills resumeUrl enrollmentNo' });
+    const appDoc = await Application.findOne({ _id: applicationId, jobId })
+        .populate({ path: 'studentId', select: 'fullname email branch cgpa phone skills resumeUrl enrollmentNo' })
+        .populate({ path: 'jobId', select: 'jobTitle companyName' });
 
     if (!appDoc) {
         throw new apierror(404, 'Application not found');
     }
 
-    return res.status(200).json(new apiResponse(200, appDoc, 'Status updated'));
+    const previousStatus = appDoc.status;
+    appDoc.status = status;
+    await appDoc.save();
+
+    let noShowPenalty = null;
+    if (status === 'no-show' && previousStatus !== 'no-show' && appDoc.studentId?._id) {
+        noShowPenalty = await applyNoShowPenalty(appDoc.studentId._id);
+    }
+
+    let emailResult = null;
+    try {
+        emailResult = await sendStatusUpdateEmail({
+            to: appDoc.studentId?.email,
+            name: appDoc.studentId?.fullname,
+            status,
+            jobTitle: appDoc.jobId?.jobTitle
+        });
+    } catch (err) {
+        console.error('Auto status email failed:', err.message);
+        emailResult = { error: err.message };
+    }
+
+    return res.status(200).json(new apiResponse(200, { appDoc, emailResult, noShowPenalty }, 'Status updated'));
 })
 
 // Create job (Company posts job)
@@ -339,8 +619,42 @@ export const createJob = asyncHandler(async(req,res)=>{
         status: "pending"
     });
 
+    // Notify verified students about new openings automatically.
+    let notificationSummary = null;
+    try {
+        const students = await User.find({ isEmailVerified: true }).select('email fullname').lean();
+        const recipients = students
+            .map((s) => s.email)
+            .filter((email) => typeof email === 'string' && email.trim().length > 0);
+
+        if (recipients.length > 0) {
+            const subject = `New Job Posted: ${job.jobTitle}`;
+            const text = `${job.companyName} posted a new job: ${job.jobTitle} (${job.location}).`;
+            const html = `
+                <div style="font-family: Arial, sans-serif; padding: 16px;">
+                    <h3 style="color: #1e40af;">New Job Opportunity</h3>
+                    <p><strong>${job.companyName}</strong> posted a new role: <strong>${job.jobTitle}</strong>.</p>
+                    <p>Location: ${job.location}</p>
+                    <p>This is an automated alert from Placement Management System.</p>
+                </div>
+            `;
+
+            const settled = await Promise.allSettled(
+                recipients.map((to) => sendNotificationEmail(to, subject, html, text))
+            );
+            const sent = settled.filter((r) => r.status === 'fulfilled').length;
+            const failed = settled.length - sent;
+            notificationSummary = { recipients: recipients.length, sent, failed };
+        } else {
+            notificationSummary = { recipients: 0, sent: 0, failed: 0 };
+        }
+    } catch (err) {
+        console.error('Auto new-job notification failed:', err.message);
+        notificationSummary = { error: err.message };
+    }
+
     return res.status(201).json(
-        new apiResponse(201, job, "Job posted successfully")
+        new apiResponse(201, { job, notificationSummary }, "Job posted successfully")
     );
 })
 
@@ -356,6 +670,7 @@ export const getJobAnalytics = asyncHandler(async(req,res)=>{
     const shortlisted = apps.filter(a => a.status === 'shortlisted').length;
     const selected = apps.filter(a => a.status === 'selected').length;
     const rejected = apps.filter(a => a.status === 'rejected').length;
+    const noShow = apps.filter(a => a.status === 'no-show').length;
 
     const branchCounts = {};
     const skillCounts = {};
@@ -371,71 +686,12 @@ export const getJobAnalytics = asyncHandler(async(req,res)=>{
     const topSkills = Object.entries(skillCounts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,count])=>({ name, count }));
 
     return res.status(200).json(new apiResponse(200, {
-        total, shortlisted, selected, rejected,
+        total, shortlisted, selected, rejected, noShow,
         shortlistRatio: total ? (shortlisted/total) : 0,
         topBranches,
         topSkills
     }, 'Job analytics'));
 });
-
-// Dev notification endpoint: logs template to console
-export const notifyApplicant = asyncHandler(async(req,res)=>{
-    const { jobId, applicationId } = req.params;
-    const { type = 'status-update', message = '' } = req.body;
-    const appDoc = await Application.findOne({ _id: applicationId, jobId }).populate({ path: 'studentId', select: 'fullname email' });
-    if (!appDoc) throw new apierror(404, 'Application not found');
-    const payload = {
-        to: appDoc.studentId?.email,
-        name: appDoc.studentId?.fullname,
-        type,
-        message: message || `Dear ${appDoc.studentId?.fullname}, your application status is '${appDoc.status}'.`
-    };
-    console.log('[DEV EMAIL]', payload);
-
-    let emailResult = null;
-    if (payload.to) {
-        const subject = 'Placement Management System - Application Update';
-        const html = `
-            <div style="font-family: Arial, sans-serif; padding: 16px;">
-                <h3 style="color: #1e40af;">Application Update</h3>
-                <p>${payload.message}</p>
-                <p style="color: #6b7280; font-size: 12px;">This is an automated message.</p>
-            </div>
-        `;
-        try {
-            emailResult = await sendNotificationEmail(payload.to, subject, html, payload.message);
-        } catch (err) {
-            console.error('Email send failed:', err.message);
-            emailResult = { error: err.message };
-        }
-    }
-
-    return res.status(200).json(new apiResponse(200, { ...payload, emailResult }, 'Notification processed'));
-});
-
-// TEST ROUTE - Create pre-approved job (TEMPORARY - for testing only)
-export const createTestJob = asyncHandler(async(req,res)=>{
-    const { companyId, companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline } = req.body;
-
-    const job = await Job.create({
-        companyId: companyId || "test-company-id",
-        companyName: companyName || "Test Company",
-        jobTitle: jobTitle || "Software Engineer",
-        jobDescription: jobDescription || "Great opportunity for talented developers",
-        requirements: requirements || ["Bachelor's degree", "2+ years experience"],
-        location: location || "Mumbai",
-        salary: salary || "8-12 LPA",
-        jobType: jobType || "Full-time",
-        skills: skills || ["JavaScript", "React", "Node.js"],
-        minCGPA: minCGPA || 7.0,
-        applicationDeadline: applicationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        status: "approved" // ✅ Direct approved for testing
-    });
-
-    return res.status(201).json(
-        new apiResponse(201, job, "Test job created and approved")
-    );
-})
 
 // Get pending jobs (for admin)
 // Admin view for moderation
@@ -459,20 +715,34 @@ export const approveJob = asyncHandler(async(req,res)=>{
         jobId,
         { status: "approved" },
         { new: true }
-    );
+    ).populate("companyId", "email companyName");
 
     if (!job) {
         throw new apierror(404, "Job not found");
     }
 
+    let emailResult = null;
+    try {
+        emailResult = await sendJobModerationEmail({
+            to: job.companyId?.email,
+            companyName: job.companyId?.companyName || job.companyName,
+            jobTitle: job.jobTitle,
+            decision: "approved"
+        });
+    } catch (err) {
+        console.error("Approve notification email failed:", err.message);
+        emailResult = { error: err.message };
+    }
+
     return res.status(200).json(
-        new apiResponse(200, job, "Job approved successfully")
+        new apiResponse(200, { job, emailResult }, "Job approved successfully")
     );
 })
 
 // Reject job (Admin)
 export const rejectJob = asyncHandler(async(req,res)=>{
     const { jobId } = req.params;
+    const { rejectionReason = "" } = req.body || {};
 
     if (!jobId) {
         throw new apierror(400, "Job ID is required");
@@ -480,16 +750,30 @@ export const rejectJob = asyncHandler(async(req,res)=>{
 
     const job = await Job.findByIdAndUpdate(
         jobId,
-        { status: "rejected" },
+        { status: "rejected", rejectionReason: rejectionReason || null },
         { new: true }
-    );
+    ).populate("companyId", "email companyName");
 
     if (!job) {
         throw new apierror(404, "Job not found");
     }
 
+    let emailResult = null;
+    try {
+        emailResult = await sendJobModerationEmail({
+            to: job.companyId?.email,
+            companyName: job.companyId?.companyName || job.companyName,
+            jobTitle: job.jobTitle,
+            decision: "rejected",
+            rejectionReason
+        });
+    } catch (err) {
+        console.error("Reject notification email failed:", err.message);
+        emailResult = { error: err.message };
+    }
+
     return res.status(200).json(
-        new apiResponse(200, job, "Job rejected successfully")
+        new apiResponse(200, { job, emailResult }, "Job rejected successfully")
     );
 })
 
@@ -502,20 +786,62 @@ export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
         throw new apierror(400, 'applicationIds must be a non-empty array');
     }
-    if (!['pending','shortlisted','rejected','selected'].includes(status)) {
+    if (!['pending','shortlisted','rejected','selected','no-show'].includes(status)) {
         throw new apierror(400, 'Invalid status');
     }
 
-    const result = await Application.updateMany(
-        { _id: { $in: applicationIds }, jobId },
-        { $set: { status } }
-    );
+    const updatedApps = await Application.find({ _id: { $in: applicationIds }, jobId })
+        .populate({ path: 'studentId', select: 'fullname email' })
+        .populate({ path: 'jobId', select: 'jobTitle companyName' });
+
+    const previousStatusById = new Map(updatedApps.map((a) => [String(a._id), a.status]));
+
+    await Promise.all(updatedApps.map(async (app) => {
+        app.status = status;
+        await app.save();
+    }));
+
+    let noShowBlocked = 0;
+    if (status === 'no-show') {
+        for (const app of updatedApps) {
+            const prev = previousStatusById.get(String(app._id));
+            if (prev !== 'no-show' && app.studentId?._id) {
+                const penalty = await applyNoShowPenalty(app.studentId._id);
+                if (penalty?.isPlacementBlocked) {
+                    noShowBlocked += 1;
+                }
+            }
+        }
+    }
+
+    let emailSummary = null;
+    try {
+        const settled = await Promise.allSettled(
+            updatedApps.map((app) =>
+                sendStatusUpdateEmail({
+                    to: app.studentId?.email,
+                    name: app.studentId?.fullname,
+                    status,
+                    jobTitle: app.jobId?.jobTitle
+                })
+            )
+        );
+
+        const sent = settled.filter((r) => r.status === 'fulfilled').length;
+        const failed = settled.length - sent;
+        emailSummary = { recipients: updatedApps.length, sent, failed };
+    } catch (err) {
+        console.error('Bulk status auto email failed:', err.message);
+        emailSummary = { error: err.message };
+    }
 
     return res.status(200).json(new apiResponse(200, {
-        acknowledged: result.acknowledged,
-        matchedCount: result.matchedCount,
-        modifiedCount: result.modifiedCount,
-        status
+        acknowledged: true,
+        matchedCount: updatedApps.length,
+        modifiedCount: updatedApps.length,
+        status,
+        noShowBlocked,
+        emailSummary
     }, 'Bulk status updated'));
 })
 

@@ -258,8 +258,8 @@ export async function uploadResume(studentId, formData) {
   return data;
 }
 // Job APIs
-export async function getAllApprovedJobs(page = 1, limit = 10, search = "", location = "", jobType = "") {
-  const url = `${BASE_URL}/api/v1/jobs/browse?page=${page}&limit=${limit}&search=${search}&location=${location}&jobType=${jobType}`;
+export async function getAllApprovedJobs(page = 1, limit = 10, search = "", location = "", jobType = "", studentId = "") {
+  const url = `${BASE_URL}/api/v1/jobs/browse?page=${page}&limit=${limit}&search=${search}&location=${location}&jobType=${jobType}&studentId=${studentId}`;
 
   const res = await fetch(url, {
     method: 'GET',
@@ -321,6 +321,116 @@ export async function applyForJob(jobId, studentId) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ studentId }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function setJobInterest(jobId, studentId, interest) {
+  const url = `${BASE_URL}/api/v1/jobs/${jobId}/interest`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ studentId, interest }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getCompanyPublicProfile(companyId) {
+  const url = `${BASE_URL}/api/v1/companies/${companyId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getCompanyProfile(companyId) {
+  const url = `${BASE_URL}/api/v1/companies/${companyId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function updateCompanyProfile(companyId, payload) {
+  const url = `${BASE_URL}/api/v1/companies/${companyId}`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
     credentials: 'include'
   });
 
@@ -589,33 +699,6 @@ export async function editJob(companyId, jobId, jobData) {
   return data;
 }
 
-// Send notification (dev) for an applicant
-export async function notifyApplicant(jobId, applicationId, payload) {
-  const url = `${BASE_URL}/api/v1/jobs/${jobId}/applicants/${applicationId}/notify`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    credentials: 'include'
-  });
-
-  let data;
-  try {
-    data = await res.json();
-  } catch (err) {
-    if (!res.ok) throw new Error(res.statusText || 'Request failed');
-    return null;
-  }
-
-  if (!res.ok) {
-    const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
-  }
-
-  return data;
-}
-
 // Admin APIs
 export async function getAdminDashboard() {
   const url = `${BASE_URL}/api/v1/admin/dashboard`;
@@ -648,6 +731,82 @@ export async function getAllStudents(page = 1, limit = 10, search = "") {
   const res = await fetch(url, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getAcademicMismatchStudents(page = 1, limit = 20, search = "") {
+  const url = `${BASE_URL}/api/v1/admin/students/mismatches?page=${page}&limit=${limit}&search=${search}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getStudentAcademicDetails(studentId) {
+  const url = `${BASE_URL}/api/v1/admin/students/${studentId}/academics`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function updateStudentOfficialAcademics(studentId, adminAcademicRecords) {
+  const url = `${BASE_URL}/api/v1/admin/students/${studentId}/official-academics`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminAcademicRecords }),
     credentials: 'include'
   });
 
@@ -722,6 +881,270 @@ export async function deleteCompany(companyId) {
 
   const res = await fetch(url, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// ==================== APTITUDE TEST APIs ====================
+
+// Create aptitude test (company uploads PDF)
+export async function createAptitudeTest(companyId, formData) {
+  const url = `${BASE_URL}/api/v1/tests/company/${companyId}/create`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData, // Already FormData with PDF file
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get all tests created by a company
+export async function getCompanyTests(companyId) {
+  const url = `${BASE_URL}/api/v1/tests/company/${companyId}/tests`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get test details
+export async function getTestDetails(testId) {
+  const url = `${BASE_URL}/api/v1/tests/${testId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get available tests for a student (tests for applied jobs + open tests)
+export async function getStudentAvailableTests(studentId) {
+  const url = `${BASE_URL}/api/v1/tests/student/${studentId}/available`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Start taking a test
+export async function startTest(testId, studentId) {
+  const url = `${BASE_URL}/api/v1/tests/${testId}/start`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentId }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Save answer to a question (gets automatically saved)
+export async function saveAnswer(attemptId, questionIndex, answer, tabSwitches = 0) {
+  const url = `${BASE_URL}/api/v1/tests/attempt/${attemptId}/save-answer`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questionIndex, answer, tabSwitches }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Submit test
+export async function submitTest(attemptId) {
+  const url = `${BASE_URL}/api/v1/tests/attempt/${attemptId}/submit`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get test results
+export async function getTestResults(attemptId) {
+  const url = `${BASE_URL}/api/v1/tests/attempt/${attemptId}/results`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get test analytics (for company dashboard)
+export async function getTestAnalytics(testId) {
+  const url = `${BASE_URL}/api/v1/tests/${testId}/analytics`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// Get student's test attempts
+export async function getStudentTestAttempts(studentId) {
+  const url = `${BASE_URL}/api/v1/tests/student/${studentId}/attempts`;
+
+  const res = await fetch(url, {
+    method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include'
   });

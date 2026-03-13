@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
+import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle, BookOpen } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
 // NOTE: Agar lucide-react nahi hai, toh wahi purane SVG icons niche paste kar dena (maine space bachane ke liye hataye hain)
 
 // Import Sub-Pages
 import JobListings from './JobListings';
 import MyApplications from './MyApplications';
 import StudentProfile from './StudentProfile';
+import StudentAptitudeTests from './StudentAptitudeTests';
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("jobs"); 
@@ -126,6 +127,9 @@ export default function StudentDashboard() {
           <button onClick={() => setActiveTab("applications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "applications" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <FileText size={20}/> <span>My Applications</span>
           </button>
+          <button onClick={() => setActiveTab("tests")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+            <BookOpen size={20}/> <span>Aptitude Tests</span>
+          </button>
           <button onClick={() => setActiveTab("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <User size={20}/> <span>My Profile</span>
           </button>
@@ -142,6 +146,7 @@ export default function StudentDashboard() {
            <h1 className="text-xl font-bold text-gray-800">
              {activeTab === 'jobs' && 'Latest Opportunities'}
              {activeTab === 'applications' && 'Application Status'}
+             {activeTab === 'tests' && 'Aptitude Tests'}
              {activeTab === 'profile' && 'My Profile'}
            </h1>
            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">R</div>
@@ -158,6 +163,8 @@ export default function StudentDashboard() {
           )}
 
           {activeTab === 'applications' && <MyApplications />}
+
+          {activeTab === 'tests' && <StudentAptitudeTests />}
           
           {activeTab === 'profile' && <StudentProfile />}
 

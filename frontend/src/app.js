@@ -14,9 +14,11 @@ import CompanyDashboard from './pages/Company/CompanyDashboard';
 import PostJob from './pages/Company/PostJob';
 import CompanyProfile from './pages/Company/CompanyProfile';
 import CompanyApplicants from './pages/Company/CompanyApplicants';
+import CreateAptitudeTest from './pages/Company/CreateAptitudeTest';
 
 // 3. Student Dashboard (Naya wala jo Tabs handle karega)
 import StudentDashboard from './pages/Student/StudentDashboard'; 
+import TakeAptitudeTest from './pages/Student/TakeAptitudeTest';
 // Note: Hame ab JobListings, MyApplications alag se import karne ki zarurat nahi hai App.js me.
 
 // App.js me upar imports add kar:
@@ -41,6 +43,7 @@ function App() {
         {/* --- 2. STUDENT SECTION --- */}
         {/* Sirf ek route kaafi hai. StudentDashboard khud andar Tabs switch karega */}
         <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/student/test/:testId" element={<TakeAptitudeTest />} />
 
         <Route path="/admin" element={<AdminLayout />}>
           {/* Default to Dashboard */}
@@ -62,6 +65,9 @@ function App() {
            
            {/* Job Post karna: /company/post-job */}
            <Route path="post-job" element={<PostJob />} />
+
+           {/* Create Aptitude Test: /company/create-test */}
+           <Route path="create-test" element={<CreateAptitudeTest />} />
            
              {/* Applicants: /company/applicants/:jobId? */}
              <Route path="applicants/:jobId?" element={<CompanyApplicants />} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiEye, FiDownload, FiMail } from 'react-icons/fi';
+import { FiSearch, FiEye, FiDownload } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getJobApplicants, getCompanyJobs, updateApplicantStatus, notifyApplicant, updateApplicantsBulkStatus } from '../../services/api.js';
+import { getJobApplicants, getCompanyJobs, updateApplicantStatus, updateApplicantsBulkStatus } from '../../services/api.js';
 
 // CompanyApplicants: list applicants for a selected job; update statuses
 export default function CompanyApplicants() {
@@ -172,6 +172,7 @@ export default function CompanyApplicants() {
                 <option value="shortlisted">Shortlisted</option>
                 <option value="rejected">Rejected</option>
                 <option value="selected">Selected</option>
+                <option value="no-show">No Show</option>
               </select>
               <input type="text" value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }} placeholder="Branch (e.g., CSE)" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               <input type="number" min="0" max="10" step="0.1" value={minCgpa} onChange={(e) => { setMinCgpa(e.target.value); setPage(1); }} placeholder="Min CGPA" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -200,6 +201,7 @@ export default function CompanyApplicants() {
                 <option value="rejected">Set: Rejected</option>
                 <option value="selected">Set: Selected</option>
                 <option value="pending">Set: Pending</option>
+                <option value="no-show">Set: No Show</option>
               </select>
               <button disabled={selected.size===0 || loading} onClick={async ()=>{
                 try {
@@ -270,6 +272,7 @@ export default function CompanyApplicants() {
                         <option value="shortlisted">Shortlisted</option>
                         <option value="rejected">Rejected</option>
                         <option value="selected">Selected</option>
+                        <option value="no-show">No Show</option>
                       </select>
                     </td>
                     <td className="px-6 py-4 flex justify-center gap-2">
@@ -289,20 +292,6 @@ export default function CompanyApplicants() {
                           <FiDownload />
                         </button>
                       )}
-                      <button
-                        className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
-                        title="Send Email"
-                        onClick={async () => {
-                          try {
-                            await notifyApplicant(selectedJobId, app._id, { type: 'status-update' });
-                            alert('Notification queued (dev log).');
-                          } catch (e) {
-                            alert('Failed to send: ' + (e.message || ''));
-                          }
-                        }}
-                      >
-                        <FiMail />
-                      </button>
                     </td>
                   </tr>
                 ))}

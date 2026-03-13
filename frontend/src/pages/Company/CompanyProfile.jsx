@@ -1,85 +1,108 @@
 import React, { useEffect, useState } from 'react';
 import { FiGlobe, FiMapPin, FiMail } from 'react-icons/fi';
 import companyimage from './1.jpg';
-import { use } from 'react';
+import { getCompanyProfile, updateCompanyProfile } from '../../services/api.js';
+
+const defaultCompanyProfile = {
+  companyName: '',
+  email: '',
+  location: '',
+  about: '',
+};
 
 export default function CompanyProfile() {
-  const [companyProfile, setCompanyProfile] = useState({});
+  const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
+  const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-  const fetchCompanyProfile = async () => {
-    try {
-      const userId = localStorage.getItem("userId");
+    const storedCompanyId = localStorage.getItem('companyId') || localStorage.getItem('userId');
+    const storedCompanyData = localStorage.getItem('companyData');
 
-      if (!userId) {
-        console.error("User ID not found in localStorage");
+    if (storedCompanyData) {
+      try {
+        const parsedCompanyData = JSON.parse(storedCompanyData);
+        setCompanyProfile((prev) => ({
+          ...prev,
+          ...parsedCompanyData,
+          about: parsedCompanyData.about || parsedCompanyData.description || '',
+        }));
+      } catch (error) {
+        console.error('Error parsing stored company data:', error);
+      }
+    }
+
+    const fetchCompanyDetails = async () => {
+      if (!storedCompanyId) {
+        console.error('Company ID not found in localStorage');
         return;
       }
 
-      const response = await fetch(
-        `http://localhost:8000/api/v1/users/companyDetails/${userId}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      try {
+        const result = await getCompanyProfile(storedCompanyId);
+        if (result?.data) {
+          const nextProfile = {
+            ...defaultCompanyProfile,
+            ...result.data,
+            about: result.data.about || result.data.description || '',
+          };
+          setCompanyProfile(nextProfile);
+          localStorage.setItem('companyId', result.data._id || storedCompanyId);
+          localStorage.setItem('userId', result.data._id || storedCompanyId);
+          localStorage.setItem('role', 'company');
+          localStorage.setItem('userRole', 'company');
+          localStorage.setItem('companyData', JSON.stringify(result.data));
         }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+      } catch (error) {
+        console.error('Error fetching company profile:', error);
       }
+    };
 
-      const result = await response.json();
-
-      if (result.success) {
-        setCompanyProfile(result.data);
-      }
-    } catch (error) {
-      console.error("Error fetching company profile:", error);
-    }
-  };
-
-  fetchCompanyProfile();
-}, []);
+    fetchCompanyDetails();
+  }, []);
 
   const handleProfileChange = (e) => setCompanyProfile({ ...companyProfile, [e.target.name]: e.target.value });
 
-
-
-  const editprofile =()=>{
-  
-    const editProfile = async () => {
+  const editprofile = async () => {
     try {
-      const userId = localStorage.getItem("userId");
+      const companyId = localStorage.getItem('companyId') || localStorage.getItem('userId');
 
-      if (!userId) return;
-
-      const response = await fetch(
-        `http://localhost:8000/api/v1/users/editCompanyDetails/${userId}`,
-        {
-          method: "post",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(companyProfile),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update company profile");
+      if (!companyId) {
+        alert('Company session not found. Please login again.');
+        return;
       }
 
-      const data = await response.json();
-      console.log("Updated company:", data);
-      alert("Company profile updated successfully!");
+      setIsSaving(true);
+      const response = await updateCompanyProfile(companyId, {
+        companyName: companyProfile.companyName,
+        email: companyProfile.email,
+        location: companyProfile.location,
+        about: companyProfile.about,
+      });
+
+      if (response?.data) {
+        const updatedProfile = {
+          ...defaultCompanyProfile,
+          ...response.data,
+          about: response.data.about || response.data.description || '',
+        };
+        setCompanyProfile(updatedProfile);
+        localStorage.setItem('companyId', response.data._id || companyId);
+        localStorage.setItem('userId', response.data._id || companyId);
+        localStorage.setItem('role', 'company');
+        localStorage.setItem('userRole', 'company');
+        localStorage.setItem('companyData', JSON.stringify(response.data));
+      }
+
+      alert('Company profile updated successfully!');
 
     } catch (error) {
-      console.error("Error updating company profile:", error);
+      console.error('Error updating company profile:', error);
+      alert(error.message || 'Failed to update company profile');
+    } finally {
+      setIsSaving(false);
     }
-  };  
-  editProfile();  
-  }
+  };
+
   const leter = companyProfile.companyName
   const first =leter?.charAt(0).toUpperCase();
 
@@ -102,19 +125,19 @@ export default function CompanyProfile() {
                 
               </div>
             </div>
-            <button onClick={editprofile} className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700">Save Changes</button>
+            <button onClick={editprofile} disabled={isSaving} className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">{isSaving ? 'Saving...' : 'Save Changes'}</button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <div className="space-y-4">
-              <InputGroup label="Company Name" name="companyName" value={companyProfile.companyName} onChange={handleProfileChange}/>              
-              <InputGroup label="Headquarters Location" name="location" value={companyProfile.location} onChange={handleProfileChange} icon={<FiMapPin />} />
-              <InputGroup label="Contact Email" name="email" value={companyProfile.email} onChange={handleProfileChange} icon={<FiMail />} />
+                <InputGroup label="Company Name" name="companyName" value={companyProfile.companyName} onChange={handleProfileChange}/>              
+                <InputGroup label="Headquarters Location" name="location" value={companyProfile.location} onChange={handleProfileChange} icon={<FiMapPin />} />
+                <InputGroup label="Contact Email" name="email" value={companyProfile.email} onChange={handleProfileChange} icon={<FiMail />} />
             </div>
             <div className="space-y-4">
                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">About Company</label>
-                  <textarea name="about" value={companyProfile.about} onChange={handleProfileChange} rows="4" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></textarea>
+                  <textarea name="about" value={companyProfile.about || ''} onChange={handleProfileChange} rows="4" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></textarea>
                </div>
             </div>
           </div>
@@ -128,7 +151,7 @@ const InputGroup = ({ label, name, value, onChange, icon }) => (
   <div>
     <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
     <div className="relative">
-      <input type="text" name={name} value={value} onChange={onChange} className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm ${icon ? 'pl-10' : ''}`} />
+      <input type="text" name={name} value={value || ''} onChange={onChange} className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm ${icon ? 'pl-10' : ''}`} />
       {icon && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg">{icon}</span>}
     </div>
   </div>

@@ -4,6 +4,7 @@ import {
     getAllApprovedJobs, 
     getJobDetails, 
     applyForJob,
+    setJobInterest,
     getStudentApplications,
     withdrawApplication,
     getJobApplicants,
@@ -11,12 +12,10 @@ import {
     updateApplicantsBulkStatus,
     deleteJob,
     createJob,
-    createTestJob,
     getPendingJobs,
     approveJob,
     rejectJob,
-    getJobAnalytics,
-    notifyApplicant
+    getJobAnalytics
 } from '../controllers/job.controller.js';
 
 const router = Router();
@@ -31,17 +30,14 @@ router.route('/admin/:jobId/reject').put(rejectJob);
 router.route('/create').post(createJob);
 router.route('/:jobId/analytics').get(getJobAnalytics);
 
-// TEST ROUTE - Remove in production
-router.route('/test/create').post(createTestJob);
-
 // Generic routes LAST
 router.route('/:jobId').get(getJobDetails);
 router.route('/:jobId').delete(deleteJob);
 router.route('/:jobId/delete').post(deleteJob);
 router.route('/:jobId/apply').post(applyForJob);
+router.route('/:jobId/interest').post(setJobInterest);
 router.route('/:jobId/applicants').get(getJobApplicants);
 router.route('/:jobId/applicants/:applicationId/status').put(updateApplicantStatus);
 router.route('/:jobId/applicants/bulk-status').put(updateApplicantsBulkStatus);
-router.route('/:jobId/applicants/:applicationId/notify').post(notifyApplicant);
 
 export default router;

@@ -82,11 +82,10 @@ Create a student account with a test email. Check:
 - Check backend console for errors
 - Test Gmail SMTP with a simple test script
 
-### OTP Shows in Console (Development)
-If email fails, OTP displays in console for testing:
-```
-📧 Verification OTP for student@college.ac.in: 123456
-```
+### OTP Not Sent / Immediate Error
+- Registration and forgot-password now fail-fast if SMTP is not configured.
+- Ensure `EMAIL_USER` and `EMAIL_PASSWORD` are present and correct.
+- Restart backend after `.env` changes.
 
 ## Production Considerations
 

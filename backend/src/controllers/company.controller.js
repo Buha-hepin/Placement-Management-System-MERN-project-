@@ -27,7 +27,7 @@ export const fetchCompanyDetails = asyncHandler(async (req, res) => {
 // Edit company details
 export const editCompanyDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { companyName, email, location, website, description } = req.body;
+    const { companyName, email, location, about, description } = req.body;
 
     if (!id) {
         throw new apierror(400, "Company ID is required");
@@ -42,8 +42,8 @@ export const editCompanyDetails = asyncHandler(async (req, res) => {
     if (companyName) company.companyName = companyName;
     if (email) company.email = email;
     if (location) company.location = location;
-    if (website) company.website = website;
-    if (description) company.description = description;
+    if (typeof about === "string") company.about = about;
+    if (typeof description === "string") company.about = description;
 
     const updatedCompany = await company.save();
     const companyData = await Company.findById(updatedCompany._id).select("-password -refreshToken");

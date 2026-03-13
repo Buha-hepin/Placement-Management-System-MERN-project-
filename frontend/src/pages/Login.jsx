@@ -71,8 +71,8 @@ function Login() {
       }
 
       // Navigate based on role
-      if (role === 'student') navigate('/Student');
-      else if (role === 'company') navigate('/Company/Dashboard');
+      if (role === 'student') navigate('/student');
+      else if (role === 'company') navigate('/company/profile');
     } catch (err) {
       console.error('Login error', err);
       setError(err.message || 'Login failed. Please try again.');
