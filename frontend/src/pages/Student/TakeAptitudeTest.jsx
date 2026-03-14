@@ -50,7 +50,7 @@ export default function TakeAptitudeTest() {
         }
       } catch (error) {
         console.error('Error starting test:', error);
-        alert('Failed to start test: ' + error.message);
+        window.appAlert('Failed to start test: ' + error.message);
         navigate('/student');
       } finally {
         setLoading(false);
@@ -159,15 +159,15 @@ export default function TakeAptitudeTest() {
       }
     } catch (error) {
       console.error('Error submitting test:', error);
-      alert('Error submitting test: ' + error.message);
+      window.appAlert('Error submitting test: ' + error.message);
     } finally {
       setSubmitting(false);
     }
   };
 
   // Manual submit
-  const handleManualSubmit = () => {
-    if (window.confirm('Are you sure you want to submit the test? You cannot review or change answers after submission.')) {
+  const handleManualSubmit = async () => {
+    if (await window.appConfirm('Are you sure you want to submit the test? You cannot review or change answers after submission.')) {
       handleAutoSubmit('completed');
     }
   };
@@ -333,16 +333,16 @@ export default function TakeAptitudeTest() {
                 <button
                   key={option}
                   onClick={() => handleAnswerSelect(option)}
-                  className={`w-full p-4 rounded-xl text-left font-semibold transition-all ${
+                  className={`w-full p-4 rounded-xl text-left font-semibold transition-all flex items-center gap-3 ${
                     answers[currentQuestion] === option
-                      ? 'bg-blue-600 text-white shadow-lg'
+                      ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-200'
                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                   }`}
                 >
-                  <span className="inline-block w-8 h-8 rounded-full border-2 border-current flex items-center justify-center mr-3">
+                  <span className="inline-flex min-w-10 h-8 px-3 rounded-lg border border-current items-center justify-center text-sm font-bold">
                     {option}
                   </span>
-                  Option {option}
+                  <span>Option {option}</span>
                 </button>
               ))}
             </div>

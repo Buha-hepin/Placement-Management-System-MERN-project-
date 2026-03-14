@@ -94,7 +94,24 @@ For production, consider:
 2. **Rate limiting** on OTP requests
 3. **Email templates** in database
 4. **Resend OTP** button (with cooldown)
-5. **SMS backup** verification
+
+## Optional SMS OTP (Twilio)
+
+Student registration now prefers SMS OTP on the phone number preloaded in Student Master records.
+If SMS is not configured, the system automatically falls back to email OTP.
+
+Add these optional variables in `backend/.env`:
+
+```dotenv
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+1XXXXXXXXXX
+```
+
+Notes:
+- Keep number in E.164 format (example: `+14155552671`).
+- If student phone is 10 digits, backend assumes India code `+91`.
+- If SMS send fails, backend tries email OTP before returning error.
 
 ## Example Email Format
 

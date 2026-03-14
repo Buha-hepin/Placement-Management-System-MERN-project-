@@ -6,9 +6,47 @@ import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 
+const parseAndValidateDeadline = (value) => {
+    if (!value) {
+        throw new apierror(400, "Application deadline is required");
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        throw new apierror(400, "Invalid application deadline");
+    }
+
+    // Date-only input from UI should remain valid for the full selected day.
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        parsed.setHours(23, 59, 59, 999);
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (parsed < todayStart) {
+        throw new apierror(400, "Application deadline cannot be in the past");
+    }
+
+    return parsed;
+};
+
+const resolveCompanyId = (req) => {
+    const authCompanyId = String(req.user?.id || "");
+    const paramCompanyId = String(req.params?.id || "");
+    const bodyCompanyId = String(req.body?.companyId || "");
+    const queryCompanyId = String(req.query?.companyId || "");
+
+    const resolvedCompanyId = authCompanyId || paramCompanyId || bodyCompanyId || queryCompanyId;
+    if (!resolvedCompanyId) {
+        throw new apierror(400, "Company ID is required");
+    }
+
+    return resolvedCompanyId;
+};
+
 // Get company details by ID
 export const fetchCompanyDetails = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const id = resolveCompanyId(req);
 
     if (!id) {
         throw new apierror(400, "Company ID is required");
@@ -26,7 +64,7 @@ export const fetchCompanyDetails = asyncHandler(async (req, res) => {
 
 // Edit company details
 export const editCompanyDetails = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const id = resolveCompanyId(req);
     const { companyName, email, location, about, description } = req.body;
 
     if (!id) {
@@ -56,8 +94,8 @@ export const editCompanyDetails = asyncHandler(async (req, res) => {
 // Post a new job
 // Maps request fields to Job schema; includes companyName from DB
 export const postJob = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { title, description, location, salary, requirements, skillsRequired, jobType } = req.body;
+    const id = resolveCompanyId(req);
+    const { title, description, location, salary, requirements, skillsRequired, jobType, applicationDeadline } = req.body;
 
     if (!id) {
         throw new apierror(400, "Company ID is required");
@@ -66,6 +104,8 @@ export const postJob = asyncHandler(async (req, res) => {
     if (![title, description, location].every(field => typeof field === 'string' && field.trim().length > 0)) {
         throw new apierror(400, "Title, description, and location are required");
     }
+
+    const normalizedDeadline = parseAndValidateDeadline(applicationDeadline);
 
     const company = await Company.findById(id);
     if (!company) {
@@ -83,6 +123,7 @@ export const postJob = asyncHandler(async (req, res) => {
         salary,
         jobType,
         skills: Array.isArray(skillsRequired) ? skillsRequired : [],
+        applicationDeadline: normalizedDeadline,
         // Keep pending by default to allow admin flow, adjust as needed
         status: "pending"
     });
@@ -95,7 +136,7 @@ export const postJob = asyncHandler(async (req, res) => {
 // Fetch all jobs posted by a company
 // Returns jobs by companyId for dashboard, newest first
 export const fetchJobsByCompany = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const id = resolveCompanyId(req);
 
     if (!id) {
         throw new apierror(400, "Company ID is required");
@@ -116,7 +157,8 @@ export const fetchJobsByCompany = asyncHandler(async (req, res) => {
 
 // Edit a job posted by a company
 export const editCompanyJob = asyncHandler(async (req, res) => {
-    const { id, jobId } = req.params;
+    const id = resolveCompanyId(req);
+    const { jobId } = req.params;
     const { jobTitle, jobDescription, location, salary, jobType, skills, requirements, applicationDeadline } = req.body;
 
     if (!id || !jobId) {
@@ -136,7 +178,9 @@ export const editCompanyJob = asyncHandler(async (req, res) => {
     if (jobType) job.jobType = jobType;
     if (skills) job.skills = Array.isArray(skills) ? skills : [];
     if (requirements) job.requirements = Array.isArray(requirements) ? requirements : [];
-    if (applicationDeadline) job.applicationDeadline = new Date(applicationDeadline);
+    if (applicationDeadline) {
+        job.applicationDeadline = parseAndValidateDeadline(applicationDeadline);
+    }
 
     const updatedJob = await job.save();
 
@@ -147,7 +191,8 @@ export const editCompanyJob = asyncHandler(async (req, res) => {
 
 // Delete a job posted by a company
 export const deleteCompanyJob = asyncHandler(async (req, res) => {
-    const { id, jobId } = req.params;
+    const id = resolveCompanyId(req);
+    const { jobId } = req.params;
 
     if (!id || !jobId) {
         throw new apierror(400, "Company ID and Job ID are required");

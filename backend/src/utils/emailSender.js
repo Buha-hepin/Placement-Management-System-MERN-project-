@@ -126,7 +126,6 @@ export const verifyEmailConfig = async () => {
             return false;
         }
         await transporter.verify();
-        console.log('✅ Email service configured successfully');
         return true;
     } catch (error) {
         console.error('❌ Email service configuration failed:', error.message);

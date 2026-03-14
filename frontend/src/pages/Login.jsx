@@ -2,8 +2,8 @@ import React from 'react'
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api.js';
-const ADMIN_EMAIL ='admin@gmail.com';
-const ADMIN_PASSWORD ='Admin123';
+
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 // Login: role-based (student/company/admin); stores IDs in localStorage
 function Login() {
@@ -34,38 +34,42 @@ function Login() {
     setError("");
 
     try {
-      // Handle admin login separately (no API call needed)
-      if (role === 'admin') {
-        if(formData.email === ADMIN_EMAIL && formData.password === ADMIN_PASSWORD){
-          localStorage.setItem('userId', 'admin');
-          localStorage.setItem('role', 'admin');
-          navigate('/admin/dashboard');
-          return;
-        } else {
-          setError('Invalid admin credentials');
-          setLoading(false);
-          return;
-        }
-      }
+      // Clear stale local ids/session markers before a new login attempt.
+      localStorage.removeItem('studentId');
+      localStorage.removeItem('studentData');
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('companyData');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('role');
+      localStorage.removeItem('userRole');
 
-      // Handle student/company login (requires API call)
+      // Handle student/company/admin login via API so auth cookie is set.
       let dataToSend = { role };
       if (role === 'student') {
         dataToSend = { ...dataToSend, enrollmentNo: formData.enrollmentNo, password: formData.password };
       } else if (role === 'company') {
         dataToSend = { ...dataToSend, email: formData.email, password: formData.password };
+      } else if (role === 'admin') {
+        dataToSend = { ...dataToSend, email: formData.email, password: formData.password };
       }
 
       const response = await loginUser(dataToSend);
       console.log('Login success', response);
-      localStorage.setItem('userId', response.data._id);
+
+      const resolvedId = String(response?.data?._id || '').trim();
+      if (role !== 'admin' && !isValidMongoId(resolvedId)) {
+        throw new Error('Invalid login response. Please try again.');
+      }
+
+      localStorage.setItem('userId', role === 'admin' ? 'admin' : resolvedId);
       localStorage.setItem('role', role);
+      localStorage.setItem('userRole', role);
 
       // Store user data in localStorage
-      if (role === 'student' && response.data._id) {
+      if (role === 'student' && isValidMongoId(response.data?._id)) {
         localStorage.setItem('studentId', response.data._id);
         localStorage.setItem('studentData', JSON.stringify(response.data));
-      } else if (role === 'company' && response.data._id) {
+      } else if (role === 'company' && isValidMongoId(response.data?._id)) {
         localStorage.setItem('companyId', response.data._id);
         localStorage.setItem('companyData', JSON.stringify(response.data));
       }
@@ -73,6 +77,7 @@ function Login() {
       // Navigate based on role
       if (role === 'student') navigate('/student');
       else if (role === 'company') navigate('/company/profile');
+      else if (role === 'admin') navigate('/admin/dashboard');
     } catch (err) {
       console.error('Login error', err);
       setError(err.message || 'Login failed. Please try again.');

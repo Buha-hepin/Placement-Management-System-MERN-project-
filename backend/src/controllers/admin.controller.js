@@ -2,10 +2,13 @@
 import { asyncHandler } from "../utils/asynchandler.js";
 import { apierror } from "../utils/apierror.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import fs from "fs/promises";
 import { User } from "../models/user.model.js";
+import { StudentMaster } from "../models/studentMaster.model.js";
 import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { compareAcademicRecords, normalizeSemesterRecord } from "../utils/academicCompare.js";
+import { cleanupCompanyDataByAdminDelete } from "../utils/dataCleanup.js";
 
 // Admin Dashboard - Get statistics
 export const getAdminDashboard = asyncHandler(async (req, res) => {
@@ -56,6 +59,134 @@ export const getAllStudents = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new apiResponse(200, { students, totalCount, page, limit }, "Students retrieved successfully")
+    );
+});
+
+// Bulk upload/update student master records used for controlled student registration.
+// Payload format:
+// {
+//   records: [
+//     { enrollmentNo: "23BEIT30055", phone: "9876543210", email: "optional@college.edu" }
+//   ]
+// }
+const processStudentMasterRecords = async (records = []) => {
+    if (!Array.isArray(records) || records.length === 0) {
+        throw new apierror(400, "records must be a non-empty array");
+    }
+
+    const summary = {
+        total: records.length,
+        inserted: 0,
+        updated: 0,
+        invalid: 0,
+        details: []
+    };
+
+    for (const item of records) {
+        const enrollmentNo = String(item?.enrollmentNo || "").trim().toUpperCase();
+        const phone = String(item?.phone || "").trim();
+        const emailRaw = String(item?.email || "").trim().toLowerCase();
+
+        if (!enrollmentNo || !phone) {
+            summary.invalid += 1;
+            summary.details.push({
+                enrollmentNo: enrollmentNo || null,
+                status: "invalid",
+                reason: "Missing enrollmentNo or phone"
+            });
+            continue;
+        }
+
+        const existing = await StudentMaster.findOne({ enrollmentNo });
+
+        if (!existing) {
+            await StudentMaster.create({
+                enrollmentNo,
+                phone,
+                email: emailRaw || null,
+                isActive: true
+            });
+
+            summary.inserted += 1;
+            summary.details.push({ enrollmentNo, status: "inserted" });
+            continue;
+        }
+
+        existing.phone = phone;
+        existing.email = emailRaw || null;
+        existing.isActive = true;
+        await existing.save();
+
+        summary.updated += 1;
+        summary.details.push({
+            enrollmentNo,
+            status: "updated",
+            isClaimed: existing.isClaimed
+        });
+    }
+
+    return summary;
+};
+
+export const bulkUploadStudentMaster = asyncHandler(async (req, res) => {
+    const { records = [] } = req.body;
+
+    const summary = await processStudentMasterRecords(records);
+
+    return res.status(200).json(
+        new apiResponse(200, summary, "Student master list upload completed")
+    );
+});
+
+const parseStudentMasterCsv = (csvText = "") => {
+    const cleaned = String(csvText || "").replace(/^\uFEFF/, "").trim();
+    if (!cleaned) return [];
+
+    const lines = cleaned.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    const headers = lines[0]
+        .split(",")
+        .map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+
+    const enrollmentIdx = headers.findIndex((h) => h === "enrollmentno" || h === "enrollment_no");
+    const phoneIdx = headers.findIndex((h) => h === "phone" || h === "phone_no" || h === "phoneno");
+    const emailIdx = headers.findIndex((h) => h === "email" || h === "emailid");
+
+    if (enrollmentIdx < 0 || phoneIdx < 0) {
+        throw new apierror(400, "CSV must contain enrollmentNo and phone columns");
+    }
+
+    const records = [];
+
+    for (let i = 1; i < lines.length; i += 1) {
+        const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        records.push({
+            enrollmentNo: cols[enrollmentIdx] || "",
+            phone: cols[phoneIdx] || "",
+            email: emailIdx >= 0 ? cols[emailIdx] || "" : ""
+        });
+    }
+
+    return records;
+};
+
+export const uploadStudentMasterCsv = asyncHandler(async (req, res) => {
+    if (!req.file?.path) {
+        throw new apierror(400, "CSV file is required");
+    }
+
+    const csvText = await fs.readFile(req.file.path, "utf-8");
+    await fs.unlink(req.file.path).catch(() => {});
+
+    const records = parseStudentMasterCsv(csvText);
+    if (!records.length) {
+        throw new apierror(400, "No valid rows found in CSV");
+    }
+
+    const summary = await processStudentMasterRecords(records);
+    return res.status(200).json(
+        new apiResponse(200, summary, "Student master list upload completed")
     );
 });
 
@@ -154,6 +285,128 @@ export const getAcademicMismatchStudents = asyncHandler(async (req, res) => {
     );
 });
 
+// Get student master records for admin verification
+export const getStudentMasterRecords = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, search = "" } = req.query;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {};
+    if (search) {
+        filter.$or = [
+            { enrollmentNo: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } }
+        ];
+    }
+
+    const records = await StudentMaster.find(filter)
+        .select("enrollmentNo phone email isActive isClaimed claimedBy claimedAt updatedAt")
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+
+    const totalCount = await StudentMaster.countDocuments(filter);
+
+    return res.status(200).json(
+        new apiResponse(
+            200,
+            { records, totalCount, page: pageNum, limit: limitNum },
+            "Student master records retrieved successfully"
+        )
+    );
+});
+
+// Delete a student master record by ID
+export const deleteStudentMasterRecord = asyncHandler(async (req, res) => {
+    const { recordId } = req.params;
+    const record = await StudentMaster.findById(recordId);
+    if (!record) throw new apierror(404, "Student master record not found");
+    await StudentMaster.deleteOne({ _id: recordId });
+    return res.status(200).json(new apiResponse(200, null, "Student master record deleted successfully"));
+});
+
+// Bulk upload official academic records using enrollmentNo mapping
+// Payload format:
+// {
+//   records: [
+//     {
+//       enrollmentNo: "23BEIT30055",
+//       semesters: [{ semester, spi, cpi, backlogCount, backlogSubjects: [] }]
+//     }
+//   ]
+// }
+export const bulkUploadOfficialAcademics = asyncHandler(async (req, res) => {
+    const { records = [] } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+        throw new apierror(400, "records must be a non-empty array");
+    }
+
+    const summary = {
+        total: records.length,
+        updated: 0,
+        notFound: 0,
+        invalid: 0,
+        mismatchedAfterCompare: 0,
+        details: []
+    };
+
+    for (const item of records) {
+        const enrollmentNo = String(item?.enrollmentNo || "").trim().toUpperCase();
+        const semesters = Array.isArray(item?.semesters) ? item.semesters : [];
+
+        if (!enrollmentNo || semesters.length === 0) {
+            summary.invalid += 1;
+            summary.details.push({ enrollmentNo: enrollmentNo || null, status: "invalid", reason: "Missing enrollmentNo or semesters" });
+            continue;
+        }
+
+        const student = await User.findOne({ enrollmentNo });
+        if (!student) {
+            summary.notFound += 1;
+            summary.details.push({ enrollmentNo, status: "not-found" });
+            continue;
+        }
+
+        const normalizedAdmin = semesters
+            .map(normalizeSemesterRecord)
+            .filter((record) => record.semester >= 1 && record.semester <= 8)
+            .sort((a, b) => a.semester - b.semester);
+
+        student.adminAcademicRecords = normalizedAdmin;
+
+        const verification = compareAcademicRecords(student.semesterAcademicRecords || [], student.adminAcademicRecords || []);
+        student.academicVerification = {
+            hasMismatch: verification.hasMismatch,
+            mismatchCount: verification.mismatchCount,
+            mismatchSemesters: verification.mismatchSemesters,
+            mismatchDetails: verification.mismatchDetails,
+            lastComparedAt: verification.comparedAt
+        };
+
+        await student.save();
+
+        summary.updated += 1;
+        if (verification.hasMismatch) {
+            summary.mismatchedAfterCompare += 1;
+        }
+
+        summary.details.push({
+            enrollmentNo,
+            studentId: student._id,
+            status: "updated",
+            hasMismatch: verification.hasMismatch,
+            mismatchCount: verification.mismatchCount
+        });
+    }
+
+    return res.status(200).json(
+        new apiResponse(200, summary, "Bulk official academic upload completed")
+    );
+});
+
 // Get all companies
 export const getAllCompanies = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search = "" } = req.query;
@@ -210,6 +463,22 @@ export const deleteStudent = asyncHandler(async (req, res) => {
         throw new apierror(404, "Student not found");
     }
 
+    // Keep student master registry in sync so deleted student can re-register.
+    if (student?.enrollmentNo) {
+        await StudentMaster.findOneAndUpdate(
+            { enrollmentNo: String(student.enrollmentNo).trim().toUpperCase() },
+            {
+                isClaimed: false,
+                claimedBy: null,
+                claimedAt: null,
+                registrationOtp: null,
+                registrationOtpExpiry: null,
+                registrationOtpVerifiedAt: null,
+                registrationOtpAttempts: 0
+            }
+        );
+    }
+
     return res.status(200).json(
         new apiResponse(200, {}, "Student deleted successfully")
     );
@@ -223,16 +492,13 @@ export const deleteCompany = asyncHandler(async (req, res) => {
         throw new apierror(400, "Company ID is required");
     }
 
-    const company = await Company.findByIdAndDelete(companyId);
-    if (!company) {
+    const cleanupResult = await cleanupCompanyDataByAdminDelete(companyId);
+    if (!cleanupResult) {
         throw new apierror(404, "Company not found");
     }
 
-    // Delete all jobs posted by this company
-    await Job.deleteMany({ companyId });
-
     return res.status(200).json(
-        new apiResponse(200, {}, "Company and associated jobs deleted successfully")
+        new apiResponse(200, cleanupResult, "Company and associated data deleted successfully")
     );
 });
 

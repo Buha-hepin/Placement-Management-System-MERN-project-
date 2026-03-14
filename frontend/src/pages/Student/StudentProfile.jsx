@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Edit2, FileText, Upload, Download, X, Check } from 'lucide-react'; 
+import { useNavigate } from 'react-router-dom';
 import { getStudentProfile, updateStudentProfile, updateStudentSkills, uploadResume } from '../../services/api.js';
 
 const buildDefaultSemesters = () => (
@@ -30,9 +31,28 @@ const mergeSemesterRecords = (records = []) => {
   });
 };
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveStoredStudentId = () => {
+  const direct = String(localStorage.getItem('studentId') || localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  try {
+    const cachedStudent = JSON.parse(localStorage.getItem('studentData') || '{}');
+    const cachedId = String(cachedStudent?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // Ignore malformed cached JSON.
+  }
+
+  return '';
+};
+
 const StudentProfile = () => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
   const [profileData, setProfileData] = useState(null);
   const [formData, setFormData] = useState({
     fullname: '',
@@ -46,6 +66,7 @@ const StudentProfile = () => {
   const [skillInput, setSkillInput] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const officialJsonInputRef = useRef(null);
 
   const resolveResumeUrl = (url) => {
     if (!url) return '';
@@ -54,21 +75,38 @@ const StudentProfile = () => {
     return `${base}${url}`;
   };
 
-  // Get stored student ID from localStorage
-  const studentId = localStorage.getItem('studentId');
+  // Resolve student ID safely to avoid API calls with stale/non-Mongo IDs.
+  const studentId = resolveStoredStudentId();
 
   useEffect(() => {
     if (studentId) {
       fetchStudentProfile();
+    } else {
+      localStorage.removeItem('studentId');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('studentData');
+      setLoading(false);
+      setProfileError('Student session is invalid. Please login again.');
     }
   }, [studentId]);
 
-  const fetchStudentProfile = async () => {
+  const fetchStudentProfile = async (targetId = studentId) => {
+    if (!isValidMongoId(targetId)) {
+      setProfileError('Invalid student session. Please login again.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await getStudentProfile(studentId);
+      setProfileError('');
+      const response = await getStudentProfile(targetId);
       if (response?.data) {
         const data = response.data;
+        if (data?._id) {
+          localStorage.setItem('studentId', data._id);
+          localStorage.setItem('userId', data._id);
+        }
         setProfileData(data);
         setFormData({
           fullname: data.fullname || '',
@@ -82,6 +120,14 @@ const StudentProfile = () => {
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error);
+      const message = error?.message || 'Failed to load profile';
+      setProfileError(message);
+
+      if (String(message).toLowerCase().includes('student not found')) {
+        localStorage.removeItem('studentId');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('studentData');
+      }
     } finally {
       setLoading(false);
     }
@@ -113,9 +159,16 @@ const StudentProfile = () => {
   };
 
   const handleSaveProfile = async () => {
+    const targetStudentId = String(profileData?._id || studentId || '').trim();
+    if (!isValidMongoId(targetStudentId)) {
+      window.appAlert('Invalid student session. Please login again.');
+      navigate('/login');
+      return;
+    }
+
     try {
       setLoading(true);
-      await updateStudentProfile(studentId, {
+      await updateStudentProfile(targetStudentId, {
         fullname: formData.fullname,
         email: formData.email,
         branch: formData.branch,
@@ -129,12 +182,12 @@ const StudentProfile = () => {
           backlogSubjects: Array.isArray(record.backlogSubjects) ? record.backlogSubjects : []
         }))
       });
-      await updateStudentSkills(studentId, formData.skills);
-      await fetchStudentProfile();
+      await updateStudentSkills(targetStudentId, formData.skills);
+      await fetchStudentProfile(targetStudentId);
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
-      alert('Failed to update profile');
+      window.appAlert('Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -144,16 +197,23 @@ const StudentProfile = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const targetStudentId = String(profileData?._id || studentId || '').trim();
+    if (!isValidMongoId(targetStudentId)) {
+      window.appAlert('Invalid student session. Please login again.');
+      navigate('/login');
+      return;
+    }
+
     try {
       setUploadingResume(true);
       const formDataFile = new FormData();
       formDataFile.append('resume', file);
-      await uploadResume(studentId, formDataFile);
-      await fetchStudentProfile();
-      alert('Resume uploaded successfully');
+      await uploadResume(targetStudentId, formDataFile);
+      await fetchStudentProfile(targetStudentId);
+      window.appAlert('Resume uploaded successfully');
     } catch (error) {
       console.error('Failed to upload resume:', error);
-      alert(error?.message || 'Failed to upload resume');
+      window.appAlert(error?.message || 'Failed to upload resume');
     } finally {
       setUploadingResume(false);
     }
@@ -178,8 +238,88 @@ const StudentProfile = () => {
     }));
   };
 
-  if (!profileData) {
+  const handleUseAdminOfficialData = () => {
+    const official = mergeSemesterRecords(profileData?.adminAcademicRecords || []);
+    setFormData((prev) => ({
+      ...prev,
+      semesterAcademicRecords: official,
+    }));
+
+    // If present, use last semester CPI as current CGPA suggestion.
+    const sem8 = official.find((record) => Number(record.semester) === 8);
+    if (sem8 && sem8.cpi !== '' && sem8.cpi !== undefined && sem8.cpi !== null) {
+      setFormData((prev) => ({ ...prev, cgpa: sem8.cpi }));
+    }
+  };
+
+  const handleImportOfficialJson = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const records = Array.isArray(parsed) ? parsed : parsed?.records;
+
+      if (!Array.isArray(records) || records.length === 0) {
+        throw new Error('Invalid JSON format. Expected { records: [...] }');
+      }
+
+      const currentEnrollment = String(profileData?.enrollmentNo || '').trim().toUpperCase();
+      const matched = records.find(
+        (item) => String(item?.enrollmentNo || '').trim().toUpperCase() === currentEnrollment
+      );
+
+      if (!matched) {
+        throw new Error(`No data found for enrollment number ${currentEnrollment} in selected file.`);
+      }
+
+      const merged = mergeSemesterRecords(Array.isArray(matched.semesters) ? matched.semesters : []);
+      setFormData((prev) => ({
+        ...prev,
+        semesterAcademicRecords: merged
+      }));
+
+      const sem8 = merged.find((record) => Number(record.semester) === 8);
+      if (sem8 && sem8.cpi !== '' && sem8.cpi !== undefined && sem8.cpi !== null) {
+        setFormData((prev) => ({ ...prev, cgpa: sem8.cpi }));
+      }
+
+      window.appAlert('Official JSON data imported into semester records. Click Save to persist.');
+    } catch (error) {
+      console.error('Failed to import official JSON:', error);
+      window.appAlert(error.message || 'Failed to import JSON file');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  if (loading) {
     return <div className="max-w-4xl mx-auto p-6 text-center">Loading profile...</div>;
+  }
+
+  if (profileError) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <p className="text-red-600 font-medium">{profileError}</p>
+        <button
+          onClick={() => {
+            if (!resolveStoredStudentId()) {
+              navigate('/login');
+              return;
+            }
+            fetchStudentProfile();
+          }}
+          className="mt-4 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+        >
+          Retry / Login
+        </button>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return <div className="max-w-4xl mx-auto p-6 text-center">Profile not found.</div>;
   }
 
   const initials = profileData.fullname
@@ -324,15 +464,44 @@ const StudentProfile = () => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-3 border-b pb-2">
               <h3 className="font-bold text-gray-900">Semester Academic Records (Sem 1 to 8)</h3>
-              {profileData.academicVerification?.hasMismatch ? (
-                <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-700">
-                  Mismatch Found ({profileData.academicVerification?.mismatchCount || 0})
-                </span>
-              ) : (
-                <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
-                  Verified / No mismatch
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {isEditing && (profileData?.adminAcademicRecords || []).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleUseAdminOfficialData}
+                    className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  >
+                    Use Admin Official Data
+                  </button>
+                )}
+                {isEditing && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => officialJsonInputRef.current?.click()}
+                      className="text-xs px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    >
+                      Import Official JSON
+                    </button>
+                    <input
+                      ref={officialJsonInputRef}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={handleImportOfficialJson}
+                    />
+                  </>
+                )}
+                {profileData.academicVerification?.hasMismatch ? (
+                  <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-700">
+                    Mismatch Found ({profileData.academicVerification?.mismatchCount || 0})
+                  </span>
+                ) : (
+                  <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
+                    Verified / No mismatch
+                  </span>
+                )}
+              </div>
             </div>
 
             {profileData.academicVerification?.hasMismatch && (

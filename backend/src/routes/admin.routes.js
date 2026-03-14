@@ -1,15 +1,22 @@
 // Admin routes: dashboard, users, jobs management
 import { Router } from 'express';
+import { upload } from '../middlewares/multer.middleware.js';
+import { apierror } from '../utils/apierror.js';
 import {
     getAdminDashboard,
     getAllStudents,
+    bulkUploadStudentMaster,
+    uploadStudentMasterCsv,
+    getStudentMasterRecords,
     getStudentAcademicDetails,
     updateStudentOfficialAcademics,
     getAcademicMismatchStudents,
+    bulkUploadOfficialAcademics,
     getAllCompanies,
     getCompanyJobsByAdmin,
     deleteStudent,
     deleteCompany,
+    deleteStudentMasterRecord,
     getPendingJobs,
     approveJob,
     rejectJob,
@@ -18,12 +25,24 @@ import {
 
 const router = Router();
 
+const masterCsvUpload = (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) return next(new apierror(400, err.message || 'CSV upload failed'));
+        return next();
+    });
+};
+
 // Dashboard
 router.route('/dashboard').get(getAdminDashboard);
 
 // Students management
 router.route('/students').get(getAllStudents);
+router.route('/students/master').get(getStudentMasterRecords);
+router.route('/students/master/bulk').post(bulkUploadStudentMaster);
+router.route('/students/master/upload-csv').post(masterCsvUpload, uploadStudentMasterCsv);
+router.route('/students/master/:recordId').delete(deleteStudentMasterRecord);
 router.route('/students/mismatches').get(getAcademicMismatchStudents);
+router.route('/students/official-academics/bulk').put(bulkUploadOfficialAcademics);
 router.route('/students/:studentId/academics').get(getStudentAcademicDetails);
 router.route('/students/:studentId/official-academics').put(updateStudentOfficialAcademics);
 router.route('/students/:studentId').delete(deleteStudent);

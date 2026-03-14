@@ -49,6 +49,7 @@ import jobRouter from "./routes/job.routes.js"
 import companyRouter from "./routes/company.routes.js"
 import adminRouter from "./routes/admin.routes.js"
 import aptitudeTestRouter from "./routes/aptitudeTest.routes.js"
+import placementMaterialRouter from "./routes/placementMaterial.routes.js"
 import { apiResponse } from "./utils/apiResponse.js"
 
 
@@ -63,6 +64,8 @@ app.use("/api/v1/companies", companyRouter)
 app.use("/api/v1/admin", adminRouter)
 // Aptitude tests
 app.use("/api/v1/tests", aptitudeTestRouter)
+// Placement materials for admin upload and student viewing
+app.use("/api/v1/materials", placementMaterialRouter)
 
 // Global error handler
 app.use((err, req, res, next) => {

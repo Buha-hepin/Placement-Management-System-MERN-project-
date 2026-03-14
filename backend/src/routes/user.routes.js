@@ -2,10 +2,15 @@ import { Router } from 'express';
 // User & Student Controllers
 import { 
     registerUser, 
+    requestStudentRegistrationOtp,
+    verifyStudentRegistrationOtp,
+    completeStudentRegistration,
     loginUser, 
     verifyEmail,
+    verifyRegistrationOtp,
     forgotPassword,
     resetPassword,
+    logoutUser,
     getStudentProfile, 
     updateStudentProfile, 
     updateStudentSkills, 
@@ -27,10 +32,15 @@ const router = Router();
 
 // Common Routes
 router.route('/register').post(registerUser);
+router.route('/student-registration/request-otp').post(requestStudentRegistrationOtp);
+router.route('/student-registration/verify-otp').post(verifyStudentRegistrationOtp);
+router.route('/student-registration/complete').post(completeStudentRegistration);
 router.route('/verify-email').post(verifyEmail);
+router.route('/verify-registration-otp').post(verifyRegistrationOtp);
 router.route('/login').post(loginUser);
 router.route('/forgot-password').post(forgotPassword);
 router.route('/reset-password').post(resetPassword);
+router.route('/logout').post(logoutUser);
 
 // Student profile routes (Tera Sujal wala code)
 router.route('/student/:studentId').get(getStudentProfile);

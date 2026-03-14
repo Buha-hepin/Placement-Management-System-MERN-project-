@@ -45,9 +45,67 @@ const buildStartTestPayload = (test, attempt) => {
     };
 };
 
+const hasObjectId = (arr = [], targetId = "") =>
+    (arr || []).some((id) => String(id) === String(targetId));
+
+const resolveStudentId = (req, providedId = "") => {
+    const authStudentId = String(req.user?.id || "");
+    const fallbackStudentId = String(
+        providedId || req.params?.studentId || req.body?.studentId || req.query?.studentId || ""
+    );
+    return authStudentId || fallbackStudentId;
+};
+
+const resolveCompanyId = (req, providedId = "") => {
+    const authCompanyId = String(req.user?.id || "");
+    const fallbackCompanyId = String(
+        providedId || req.params?.companyId || req.body?.companyId || req.query?.companyId || ""
+    );
+    return authCompanyId || fallbackCompanyId;
+};
+
+const ensureStudentCanTakeJobTest = async ({ studentId, test, student }) => {
+    if (!test?.jobId) return;
+
+    const job = await Job.findById(test.jobId)
+        .select("_id jobTitle status applicationDeadline minCGPA interestedStudents")
+        .lean();
+
+    if (!job) {
+        throw new apierror(404, "Linked job for this test was not found");
+    }
+
+    if (job.status !== "approved") {
+        throw new apierror(403, "This test is not available because the linked job is not approved");
+    }
+
+    if (job.applicationDeadline && new Date(job.applicationDeadline) < new Date()) {
+        throw new apierror(403, "This test is not available because the application deadline has passed");
+    }
+
+    if (!hasObjectId(job.interestedStudents || [], studentId)) {
+        throw new apierror(403, "Mark this job as interested first to access its aptitude test");
+    }
+
+    const application = await Application.findOne({ jobId: job._id, studentId }).select("_id").lean();
+    if (!application) {
+        throw new apierror(403, "Apply for this job first to access its aptitude test");
+    }
+
+    if (student?.isPlacementBlocked) {
+        throw new apierror(403, "You are blocked from placement activity due to repeated no-shows");
+    }
+
+    const requiredCgpa = Math.max(Number(job.minCGPA || 0), Number(test?.restrictions?.minCGPA || 0));
+    const studentCgpa = Number(student?.cgpa);
+    if (requiredCgpa > 0 && (!Number.isFinite(studentCgpa) || studentCgpa < requiredCgpa)) {
+        throw new apierror(403, `Your CGPA (${Number.isFinite(studentCgpa) ? studentCgpa : "N/A"}) is below the minimum required (${requiredCgpa})`);
+    }
+};
+
 // Create aptitude test from PDF
 export const createAptitudeTest = asyncHandler(async (req, res) => {
-    const { companyId } = req.params;
+    const companyId = resolveCompanyId(req, req.params?.companyId);
     const { testName, testDescription, timeLimit, jobId, answerKey, totalMarks, marksPerQuestion, negativeMarking, passingScore, maxAttempts, minCGPA, shuffleQuestions } = req.body;
 
     // Multipart FormData sends complex fields as strings. Normalize them first.
@@ -170,7 +228,7 @@ export const createAptitudeTest = asyncHandler(async (req, res) => {
 
 // Get all tests created by a company
 export const getCompanyTests = asyncHandler(async (req, res) => {
-    const { companyId } = req.params;
+    const companyId = resolveCompanyId(req, req.params?.companyId);
 
     const tests = await AptitudeTest.find({ companyId: companyId })
         .select("-answerKey") // Don't send answer key to frontend unnecessarily
@@ -202,7 +260,7 @@ export const getTestDetails = asyncHandler(async (req, res) => {
 // Start test: create a TestAttempt record
 export const startTest = asyncHandler(async (req, res) => {
     const { testId } = req.params;
-    const { studentId } = req.body;
+    const studentId = resolveStudentId(req, req.body?.studentId);
 
     if (!mongoose.Types.ObjectId.isValid(testId)) {
         throw new apierror(400, "Invalid test ID");
@@ -223,6 +281,8 @@ export const startTest = asyncHandler(async (req, res) => {
     if (!student) {
         throw new apierror(404, "Student not found");
     }
+
+    await ensureStudentCanTakeJobTest({ studentId, test, student });
 
     // Check CGPA eligibility
     if (student.cgpa < test.restrictions.minCGPA) {
@@ -308,6 +368,11 @@ export const saveAnswer = asyncHandler(async (req, res) => {
         throw new apierror(404, "Test attempt not found");
     }
 
+    const studentId = resolveStudentId(req);
+    if (studentId && String(attempt.studentId) !== studentId) {
+        throw new apierror(403, "You are not authorized to update this attempt");
+    }
+
     // Check if test time has exceeded
     const test = await AptitudeTest.findById(attempt.testId);
     const elapsedMinutes = (new Date() - attempt.startTime) / 60000;
@@ -357,6 +422,11 @@ export const submitTest = asyncHandler(async (req, res) => {
     const attempt = await TestAttempt.findById(attemptId);
     if (!attempt) {
         throw new apierror(404, "Test attempt not found");
+    }
+
+    const studentId = resolveStudentId(req);
+    if (studentId && String(attempt.studentId) !== studentId) {
+        throw new apierror(403, "You are not authorized to submit this attempt");
     }
 
     if (attempt.status !== "ongoing") {
@@ -448,6 +518,11 @@ export const getTestResults = asyncHandler(async (req, res) => {
         throw new apierror(404, "Test attempt not found");
     }
 
+    const studentId = resolveStudentId(req);
+    if (studentId && String(attempt.studentId?._id || attempt.studentId) !== studentId) {
+        throw new apierror(403, "You are not authorized to view these results");
+    }
+
     if (attempt.status !== "evaluated") {
         throw new apierror(400, "Test has not been evaluated yet");
     }
@@ -478,10 +553,16 @@ export const getTestResults = asyncHandler(async (req, res) => {
 // Get company analytics for a test
 export const getTestAnalytics = asyncHandler(async (req, res) => {
     const { testId } = req.params;
+    const role = String(req.user?.role || '').toLowerCase();
+    const companyId = role === 'company' ? resolveCompanyId(req) : null;
 
     const test = await AptitudeTest.findById(testId);
     if (!test) {
         throw new apierror(404, "Test not found");
+    }
+
+    if (role === 'company' && String(test.companyId) !== companyId) {
+        throw new apierror(403, "You are not authorized to view analytics for this test");
     }
 
     // Get all attempts for this test
@@ -525,7 +606,7 @@ export const getTestAnalytics = asyncHandler(async (req, res) => {
 
 // Get student's test attempts (for results page)
 export const getStudentTestAttempts = asyncHandler(async (req, res) => {
-    const { studentId } = req.params;
+    const studentId = resolveStudentId(req, req.params?.studentId);
 
     const attempts = await TestAttempt.find({ studentId: studentId, status: "evaluated" })
         .populate("testId", "testName companyName")
@@ -539,19 +620,42 @@ export const getStudentTestAttempts = asyncHandler(async (req, res) => {
 
 // Get all tests available to a student (tests for jobs they applied to + open tests)
 export const getStudentAvailableTests = asyncHandler(async (req, res) => {
-    const { studentId } = req.params;
+    const studentId = resolveStudentId(req, req.params?.studentId);
 
-    // Get all jobIds the student has applied to
-    const applications = await Application.find({ studentId }).select('jobId');
-    const appliedJobIds = applications.map(app => app.jobId);
+    const student = await User.findById(studentId).select('cgpa isPlacementBlocked').lean();
+    if (!student) {
+        throw new apierror(404, "Student not found");
+    }
 
-    // Fetch tests linked to those jobs OR open tests (jobId = null)
+    // Only job-linked tests are visible, and only when student is both interested and applied.
+    const applications = await Application.find({ studentId }).select('jobId').lean();
+    const appliedJobIds = applications.map((app) => app.jobId).filter(Boolean);
+
+    const jobs = await Job.find({
+        _id: { $in: appliedJobIds },
+        status: "approved",
+        applicationDeadline: { $gte: new Date() },
+        aptitudeTestId: { $ne: null },
+        interestedStudents: new mongoose.Types.ObjectId(studentId)
+    }).select('_id minCGPA').lean();
+
+    const eligibleJobIds = jobs
+        .filter((job) => {
+            if (student.isPlacementBlocked) return false;
+            const requiredCgpa = Number(job.minCGPA || 0);
+            const studentCgpa = Number(student.cgpa);
+            if (requiredCgpa <= 0) return true;
+            return Number.isFinite(studentCgpa) && studentCgpa >= requiredCgpa;
+        })
+        .map((job) => job._id);
+
     const tests = await AptitudeTest.find({
-        $or: [
-            { jobId: { $in: appliedJobIds } },
-            { jobId: null }
-        ]
-    }).select('-answerKey').lean();
+        isActive: true,
+        jobId: { $in: eligibleJobIds }
+    })
+        .select('-answerKey')
+        .populate('jobId', 'jobTitle')
+        .lean();
 
     // Fetch student's existing attempts to show attempt status
     const existingAttempts = await TestAttempt.find({ studentId })

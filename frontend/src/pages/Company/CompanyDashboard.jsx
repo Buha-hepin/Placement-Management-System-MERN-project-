@@ -4,6 +4,26 @@ import { Link } from 'react-router-dom';
 import { getCompanyJobs, deleteCompanyJob } from '../../services/api.js';
 import EditJobModal from '../../components/EditJobModal.jsx';
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveCompanyId = () => {
+  const direct = String(localStorage.getItem('companyId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // ignore malformed cached JSON
+  }
+
+  return '';
+};
+
 // CompanyDashboard: Overview with stats and recent applications
 export default function CompanyDashboard() {
   const [postedJobs, setPostedJobs] = useState([]);
@@ -11,6 +31,7 @@ export default function CompanyDashboard() {
   const [error, setError] = useState('');
   const [editingJob, setEditingJob] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const companyId = resolveCompanyId();
 
   useEffect(() => {
     fetchCompanyJobs();
@@ -19,18 +40,20 @@ export default function CompanyDashboard() {
   const fetchCompanyJobs = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('companyId');
+      const resolvedCompanyId = resolveCompanyId();
       
-      if (!companyId) {
+      if (!resolvedCompanyId) {
         setError('Please login as company first');
         return;
       }
 
-      const response = await getCompanyJobs(companyId);
+      localStorage.setItem('companyId', resolvedCompanyId);
+
+      const response = await getCompanyJobs(resolvedCompanyId);
       setPostedJobs(response.data || []);
     } catch (err) {
       console.error('Error fetching jobs:', err);
-      setError('Failed to load jobs');
+      setError(err?.message || 'Failed to load jobs');
     } finally {
       setLoading(false);
     }
@@ -42,18 +65,24 @@ export default function CompanyDashboard() {
   };
 
   const handleDeleteClick = async (jobId) => {
-    if (!window.confirm('Are you sure you want to delete this job? All applications will be removed.')) {
+    if (!(await window.appConfirm('Are you sure you want to delete this job? All applications will be removed.'))) {
       return;
     }
 
     try {
-      const companyId = localStorage.getItem('companyId');
-      await deleteCompanyJob(companyId, jobId);
-      alert('✅ Job deleted successfully');
+      const resolvedCompanyId = resolveCompanyId();
+      if (!resolvedCompanyId) {
+        window.appAlert('Please login as company first');
+        return;
+      }
+
+      localStorage.setItem('companyId', resolvedCompanyId);
+      await deleteCompanyJob(resolvedCompanyId, jobId);
+      window.appAlert('✅ Job deleted successfully');
       fetchCompanyJobs();
     } catch (err) {
       console.error('Error deleting job:', err);
-      alert('Failed to delete job: ' + (err.message || ''));
+      window.appAlert('Failed to delete job: ' + (err.message || ''));
     }
   };
 
@@ -226,7 +255,7 @@ export default function CompanyDashboard() {
       {showEditModal && editingJob && (
         <EditJobModal
           job={editingJob}
-          companyId={localStorage.getItem('companyId')}
+          companyId={companyId}
           onClose={() => setShowEditModal(false)}
           onSuccess={handleEditSuccess}
         />

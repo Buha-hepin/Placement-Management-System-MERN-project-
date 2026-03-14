@@ -5,10 +5,13 @@ import {
   Users, 
   Building2, 
   Briefcase, 
+  BookOpen,
+  Database,
   LogOut, 
   Menu, 
   X 
 } from 'lucide-react'; 
+import { logoutUser } from '../../services/api.js';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -16,9 +19,15 @@ const AdminLayout = () => {
   const location = useLocation();
 
   // Logout Function
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // even if API logout fails, clear local session
+    }
     localStorage.removeItem('userRole');
     localStorage.removeItem('userId');
+    localStorage.removeItem('role');
     navigate('/login');
   };
 
@@ -26,8 +35,10 @@ const AdminLayout = () => {
   const menuItems = [
     { path: '/admin/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/admin/students', name: 'Manage Students', icon: <Users size={20} /> },
+    { path: '/admin/student-master', name: 'Student Master', icon: <Database size={20} /> },
     { path: '/admin/companies', name: 'Manage Companies', icon: <Building2 size={20} /> },
     { path: '/admin/approve-jobs', name: 'Approve Jobs', icon: <Briefcase size={20} /> },
+    { path: '/admin/materials', name: 'Placement Materials', icon: <BookOpen size={20} /> },
   ];
 
   return (

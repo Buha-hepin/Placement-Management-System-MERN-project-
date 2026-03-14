@@ -54,7 +54,7 @@ export default function EditJobModal({ job, companyId, onClose, onSuccess }) {
       };
 
       await editJob(companyId, job._id, jobData);
-      alert('✅ Job updated successfully!');
+      window.appAlert('✅ Job updated successfully!');
       onSuccess();
       onClose();
     } catch (err) {

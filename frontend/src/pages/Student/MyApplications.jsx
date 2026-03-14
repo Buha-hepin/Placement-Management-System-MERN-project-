@@ -10,7 +10,7 @@ export default function MyApplications() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [withdrawingId, setWithdrawingId] = useState(null);
 
-  const studentId = localStorage.getItem('studentId');
+  const studentId = localStorage.getItem('studentId') || localStorage.getItem('userId');
 
   useEffect(() => {
     if (studentId) {
@@ -21,11 +21,17 @@ export default function MyApplications() {
   const fetchApplications = async () => {
     try {
       setLoading(true);
+
+      if (!studentId) {
+        throw new Error('Student session not found. Please login again.');
+      }
+
       const response = await getStudentApplications(studentId);
       setApplications(response.data || []);
     } catch (error) {
       console.error('Failed to fetch applications:', error);
-      alert('Failed to load applications');
+      const message = error?.message || 'Failed to load applications';
+      window.appAlert(message);
     } finally {
       setLoading(false);
     }
@@ -33,11 +39,11 @@ export default function MyApplications() {
 
   const handleWithdraw = async (application) => {
     if (!application?.applicationId) {
-      alert('Unable to withdraw: missing application id');
+      window.appAlert('Unable to withdraw: missing application id');
       return;
     }
 
-    if (!window.confirm('Withdraw this application?')) {
+    if (!(await window.appConfirm('Withdraw this application?'))) {
       return;
     }
 
@@ -45,9 +51,9 @@ export default function MyApplications() {
       setWithdrawingId(application.applicationId);
       await withdrawApplication(studentId, application.applicationId);
       setApplications(prev => prev.filter(app => app.applicationId !== application.applicationId));
-      alert('Application withdrawn successfully');
+      window.appAlert('Application withdrawn successfully');
     } catch (error) {
-      alert('Failed to withdraw: ' + (error.message || ''));
+      window.appAlert('Failed to withdraw: ' + (error.message || ''));
     } finally {
       setWithdrawingId(null);
     }

@@ -2,6 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { FiUpload, FiSettings, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { createAptitudeTest, getCompanyJobs } from '../../services/api';
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveCompanyId = () => {
+  const direct = String(localStorage.getItem('companyId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // ignore malformed cached JSON
+  }
+
+  return '';
+};
+
 export default function CreateAptitudeTest() {
   const [testData, setTestData] = useState({
     testName: '',
@@ -27,13 +47,14 @@ export default function CreateAptitudeTest() {
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);
 
-  const companyId = localStorage.getItem('companyId');
+  const companyId = resolveCompanyId();
 
   useEffect(() => {
     const loadCompanyJobs = async () => {
       if (!companyId) return;
       try {
         setJobsLoading(true);
+        localStorage.setItem('companyId', companyId);
         const res = await getCompanyJobs(companyId);
         setJobs(Array.isArray(res?.data) ? res.data : []);
       } catch (error) {
@@ -112,6 +133,12 @@ export default function CreateAptitudeTest() {
 
     try {
       setLoading(true);
+      if (!companyId) {
+        setMessage({ type: 'error', text: 'Please login as company first' });
+        return;
+      }
+
+      localStorage.setItem('companyId', companyId);
       
       // Create FormData for file upload
       const formData = new FormData();

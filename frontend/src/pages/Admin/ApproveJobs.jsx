@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Search, Briefcase, MapPin } from 'lucide-react';
 
 export default function ApproveJobs() {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -19,7 +20,8 @@ export default function ApproveJobs() {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/jobs/pending?page=${page}&limit=${limit}`
+        `${API_BASE_URL}/api/v1/admin/jobs/pending?page=${page}&limit=${limit}`,
+        { credentials: 'include' }
       );
       const data = await response.json();
       
@@ -29,58 +31,59 @@ export default function ApproveJobs() {
       }
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
-      alert('Failed to fetch pending jobs');
+      window.appAlert('Failed to fetch pending jobs');
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (jobId) => {
-    if (!window.confirm('Approve this job posting?')) return;
+    if (!(await window.appConfirm('Approve this job posting?'))) return;
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/jobs/${jobId}/approve`,
-        { method: 'PUT' }
+        `${API_BASE_URL}/api/v1/admin/jobs/${jobId}/approve`,
+        { method: 'PUT', credentials: 'include' }
       );
       const data = await response.json();
 
       if (data.success) {
-        alert('Job approved successfully!');
+        window.appAlert('Job approved successfully!');
         fetchPendingJobs();
       }
     } catch (error) {
       console.error('Failed to approve job:', error);
-      alert('Failed to approve job');
+      window.appAlert('Failed to approve job');
     }
   };
 
   const handleReject = async (jobId) => {
     if (!rejectReason.trim()) {
-      alert('Please enter a rejection reason');
+      window.appAlert('Please enter a rejection reason');
       return;
     }
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/jobs/${jobId}/reject`,
+        `${API_BASE_URL}/api/v1/admin/jobs/${jobId}/reject`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: rejectReason })
+          body: JSON.stringify({ rejectionReason: rejectReason }),
+          credentials: 'include'
         }
       );
       const data = await response.json();
 
       if (data.success) {
-        alert('Job rejected successfully');
+        window.appAlert('Job rejected successfully');
         setRejectingJobId(null);
         setRejectReason('');
         fetchPendingJobs();
       }
     } catch (error) {
       console.error('Failed to reject job:', error);
-      alert('Failed to reject job');
+      window.appAlert('Failed to reject job');
     }
   };
 

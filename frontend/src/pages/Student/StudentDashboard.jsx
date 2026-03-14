@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle, BookOpen } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
+import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle, BookOpen, FolderOpen } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
 // NOTE: Agar lucide-react nahi hai, toh wahi purane SVG icons niche paste kar dena (maine space bachane ke liye hataye hain)
 
 // Import Sub-Pages
@@ -8,6 +8,7 @@ import JobListings from './JobListings';
 import MyApplications from './MyApplications';
 import StudentProfile from './StudentProfile';
 import StudentAptitudeTests from './StudentAptitudeTests';
+import PlacementMaterials from './PlacementMaterials';
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("jobs"); 
@@ -32,7 +33,14 @@ export default function StudentDashboard() {
     // Aur jobs add kar sakta hai
   ];
 
-  const handleLogout = () => navigate('/login');
+  const handleLogout = () => {
+    localStorage.removeItem('studentId');
+    localStorage.removeItem('studentData');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('role');
+    localStorage.removeItem('userRole');
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
@@ -108,7 +116,7 @@ export default function StudentDashboard() {
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setSelectedJob(null)} className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition">Cancel</button>
-              <button onClick={() => alert(`Applied Successfully!`)} className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition">Confirm Apply</button>
+              <button onClick={() => window.appAlert(`Applied Successfully!`)} className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition">Confirm Apply</button>
             </div>
           </div>
         </div>
@@ -130,6 +138,9 @@ export default function StudentDashboard() {
           <button onClick={() => setActiveTab("tests")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <BookOpen size={20}/> <span>Aptitude Tests</span>
           </button>
+          <button onClick={() => setActiveTab("materials")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "materials" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+            <FolderOpen size={20}/> <span>Placement Materials</span>
+          </button>
           <button onClick={() => setActiveTab("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <User size={20}/> <span>My Profile</span>
           </button>
@@ -147,6 +158,7 @@ export default function StudentDashboard() {
              {activeTab === 'jobs' && 'Latest Opportunities'}
              {activeTab === 'applications' && 'Application Status'}
              {activeTab === 'tests' && 'Aptitude Tests'}
+             {activeTab === 'materials' && 'Placement Materials'}
              {activeTab === 'profile' && 'My Profile'}
            </h1>
            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">R</div>
@@ -165,6 +177,8 @@ export default function StudentDashboard() {
           {activeTab === 'applications' && <MyApplications />}
 
           {activeTab === 'tests' && <StudentAptitudeTests />}
+
+          {activeTab === 'materials' && <PlacementMaterials />}
           
           {activeTab === 'profile' && <StudentProfile />}
 

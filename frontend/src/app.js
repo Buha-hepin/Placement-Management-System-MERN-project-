@@ -27,6 +27,8 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import AllCompanies from './pages/Admin/AllCompanies';
 import AllStudents from './pages/Admin/AllStudents';
 import ApproveJobs from './pages/Admin/ApproveJobs';
+import PlacementMaterialsAdmin from './pages/Admin/PlacementMaterialsAdmin';
+import StudentMasterAdmin from './pages/Admin/StudentMasterAdmin';
 
 function App() {
   return (
@@ -51,7 +53,9 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="companies" element={<AllCompanies />} />
           <Route path="students" element={<AllStudents />} />
+          <Route path="student-master" element={<StudentMasterAdmin />} />
           <Route path="approve-jobs" element={<ApproveJobs />} />
+          <Route path="materials" element={<PlacementMaterialsAdmin />} />
         </Route>
       
         

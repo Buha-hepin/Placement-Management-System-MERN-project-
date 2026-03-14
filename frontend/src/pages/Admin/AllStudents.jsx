@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Trash2, ClipboardCheck, AlertTriangle, X } from 'lucide-react';
+import { Users, Search, Trash2, ClipboardCheck, AlertTriangle, X, Download } from 'lucide-react';
 import {
   getAllStudents,
   deleteStudent,
   getAcademicMismatchStudents,
   getStudentAcademicDetails,
   updateStudentOfficialAcademics,
+  bulkUploadOfficialAcademics,
 } from '../../services/api.js';
 
 const buildDefaultSemesters = () => (
@@ -45,6 +46,7 @@ export default function AllStudents() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [adminAcademicRecords, setAdminAcademicRecords] = useState(buildDefaultSemesters());
   const [savingOfficial, setSavingOfficial] = useState(false);
+  const [uploadingBulk, setUploadingBulk] = useState(false);
   const limit = 10;
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function AllStudents() {
       setTotalCount(response?.data?.totalCount || 0);
     } catch (error) {
       console.error('Failed to fetch students:', error);
-      alert('Failed to fetch students');
+      window.appAlert('Failed to fetch students');
     } finally {
       setLoading(false);
     }
@@ -76,16 +78,16 @@ export default function AllStudents() {
   };
 
   const handleDelete = async (studentId) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) return;
+    if (!(await window.appConfirm('Are you sure you want to delete this student?'))) return;
 
     try {
       await deleteStudent(studentId);
-      alert('Student deleted successfully');
+      window.appAlert('Student deleted successfully');
       fetchStudents();
       fetchMismatchStudents();
     } catch (error) {
       console.error('Failed to delete student:', error);
-      alert('Failed to delete student');
+      window.appAlert('Failed to delete student');
     }
   };
 
@@ -99,7 +101,7 @@ export default function AllStudents() {
       setAdminAcademicRecords(mergeSemesterRecords(student.adminAcademicRecords || []));
     } catch (error) {
       console.error('Failed to fetch student academic details:', error);
-      alert(error.message || 'Failed to open academic details');
+      window.appAlert(error.message || 'Failed to open academic details');
     }
   };
 
@@ -137,13 +139,83 @@ export default function AllStudents() {
       setAdminAcademicRecords(mergeSemesterRecords(response?.data?.adminAcademicRecords || []));
       await fetchStudents();
       await fetchMismatchStudents();
-      alert('Official academic data updated and compared successfully.');
+      window.appAlert('Official academic data updated and compared successfully.');
     } catch (error) {
       console.error('Failed to update official academics:', error);
-      alert(error.message || 'Failed to update official academics');
+      window.appAlert(error.message || 'Failed to update official academics');
     } finally {
       setSavingOfficial(false);
     }
+  };
+
+  const handleBulkOfficialUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingBulk(true);
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const records = Array.isArray(parsed) ? parsed : parsed?.records;
+
+      if (!Array.isArray(records) || records.length === 0) {
+        throw new Error('Invalid file format. Expected { records: [...] } or direct array.');
+      }
+
+      const response = await bulkUploadOfficialAcademics(records);
+      await fetchStudents();
+      await fetchMismatchStudents();
+
+      const summary = response?.data;
+      window.appAlert(
+        `Bulk upload completed. Updated: ${summary?.updated || 0}, Not found: ${summary?.notFound || 0}, Invalid: ${summary?.invalid || 0}, Mismatched: ${summary?.mismatchedAfterCompare || 0}`
+      );
+    } catch (error) {
+      console.error('Bulk official upload failed:', error);
+      window.appAlert(error.message || 'Bulk upload failed');
+    } finally {
+      setUploadingBulk(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleDownloadOfficialJson = () => {
+    if (!Array.isArray(studentsToRender) || studentsToRender.length === 0) {
+      window.appAlert('No students available to export');
+      return;
+    }
+
+    const payload = {
+      records: studentsToRender.map((student) => {
+        const sourceSemesters = Array.isArray(student?.adminAcademicRecords) && student.adminAcademicRecords.length > 0
+          ? student.adminAcademicRecords
+          : mergeSemesterRecords(student?.semesterAcademicRecords || []);
+
+        const semesters = sourceSemesters.map((record) => ({
+          semester: Number(record?.semester || 0),
+          spi: Number(record?.spi || 0),
+          cpi: Number(record?.cpi || 0),
+          backlogCount: Number(record?.backlogCount || 0),
+          backlogSubjects: Array.isArray(record?.backlogSubjects) ? record.backlogSubjects : []
+        }));
+
+        return {
+          enrollmentNo: String(student?.enrollmentNo || '').toUpperCase(),
+          semesters
+        };
+      })
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `official-academic-data-${date}-page-${page}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const totalPages = Math.ceil(totalCount / limit);
@@ -166,6 +238,22 @@ export default function AllStudents() {
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
           >
             {showMismatchOnly ? 'Show All Students' : 'Show Only Mismatch Students'}
+          </button>
+          <label className="px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 cursor-pointer">
+            {uploadingBulk ? 'Uploading...' : 'Upload Official Data (JSON)'}
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={handleBulkOfficialUpload}
+              disabled={uploadingBulk}
+              className="hidden"
+            />
+          </label>
+          <button
+            onClick={handleDownloadOfficialJson}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          >
+            <Download size={14} /> Download Official Data (JSON)
           </button>
         </div>
       </div>
@@ -410,6 +498,7 @@ export default function AllStudents() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

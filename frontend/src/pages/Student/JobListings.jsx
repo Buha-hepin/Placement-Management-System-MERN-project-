@@ -2,6 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { FiBriefcase, FiMapPin, FiClock, FiSearch, FiFilter, FiChevronRight } from 'react-icons/fi';
 import { getAllApprovedJobs, applyForJob, getStudentApplications, setJobInterest, getCompanyPublicProfile } from '../../services/api.js';
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveStudentId = () => {
+  const direct = String(localStorage.getItem('studentId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('studentData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // Ignore malformed cached JSON.
+  }
+
+  return '';
+};
+
 // JobListings: browse approved jobs with filters and apply action
 export default function JobListings() {
   const [jobs, setJobs] = useState([]);
@@ -20,14 +40,18 @@ export default function JobListings() {
     jobType: 'All'
   });
 
-  const studentId = localStorage.getItem('studentId');
+  const studentId = resolveStudentId();
 
   useEffect(() => {
+    if (studentId) {
+      localStorage.setItem('studentId', studentId);
+    }
+
     fetchJobs();
     if (studentId) {
       fetchAppliedJobs();
     }
-  }, [page, filters]);
+  }, [page, filters, studentId]);
 
   const fetchJobs = async () => {
     try {
@@ -44,7 +68,7 @@ export default function JobListings() {
       setTotalPages(response.data.totalPages);
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
-      alert('Failed to fetch jobs');
+      window.appAlert('Failed to fetch jobs');
     } finally {
       setLoading(false);
     }
@@ -61,7 +85,7 @@ export default function JobListings() {
 
   const handleApplyJob = async (jobId) => {
     if (!studentId) {
-      alert('Please login first');
+      window.appAlert('Please login first');
       return;
     }
 
@@ -69,10 +93,10 @@ export default function JobListings() {
       setLoading(true);
       await applyForJob(jobId, studentId);
       setAppliedJobs([...appliedJobs, jobId]);
-      alert('Applied successfully! Notice: If you apply and miss the placement process 3 times, your account will be blocked from future applications.');
+      window.appAlert('Applied successfully! Notice: If you apply and miss the placement process 3 times, your account will be blocked from future applications.');
     } catch (error) {
       console.error('Failed to apply:', error);
-      alert(error.message || 'Failed to apply for job');
+      window.appAlert(error.message || 'Failed to apply for job');
     } finally {
       setLoading(false);
     }
@@ -80,7 +104,7 @@ export default function JobListings() {
 
   const handleInterestChange = async (jobId, interest) => {
     if (!studentId) {
-      alert('Please login first');
+      window.appAlert('Please login first');
       return;
     }
 
@@ -108,13 +132,13 @@ export default function JobListings() {
       }));
 
       if (interest === 'interested') {
-        alert('Marked as interested. You can apply now. Notice: If you apply but do not attend the placement process 3 times, your account will be blocked automatically.');
+        window.appAlert('Marked as interested. You can apply now. Notice: If you apply but do not attend the placement process 3 times, your account will be blocked automatically.');
       } else {
-        alert(response?.message || 'Marked as not interested.');
+        window.appAlert(response?.message || 'Marked as not interested.');
       }
       fetchJobs();
     } catch (error) {
-      alert(error.message || 'Failed to update interest');
+      window.appAlert(error.message || 'Failed to update interest');
     }
   };
 
@@ -124,7 +148,7 @@ export default function JobListings() {
       setSelectedCompany(response.data || null);
       setShowCompanyModal(true);
     } catch (error) {
-      alert(error.message || 'Failed to load company profile');
+      window.appAlert(error.message || 'Failed to load company profile');
     }
   };
 

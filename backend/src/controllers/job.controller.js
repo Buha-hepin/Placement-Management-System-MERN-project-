@@ -5,6 +5,7 @@ import { apierror } from "../utils/apierror.js";
 import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
 import { User } from "../models/user.model.js";
+import { Company } from "../models/company.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { sendNotificationEmail } from "../utils/emailSender.js";
 
@@ -60,6 +61,54 @@ const sendJobModerationEmail = async ({ to, companyName, jobTitle, decision, rej
 };
 
 const hasStudentId = (arr = [], studentId = "") => arr.some((id) => String(id) === String(studentId));
+
+const resolveStudentId = (req, providedId = "") => {
+    const authStudentId = String(req.user?.id || "");
+    const fallbackStudentId = String(
+        providedId || req.params?.studentId || req.body?.studentId || req.query?.studentId || ""
+    );
+
+    const resolvedStudentId = authStudentId || fallbackStudentId;
+    if (!resolvedStudentId) {
+        throw new apierror(400, "Student ID is required");
+    }
+
+    return resolvedStudentId;
+};
+
+const resolveCompanyId = (req, providedId = "") => {
+    const authCompanyId = String(req.user?.id || "");
+    const fallbackCompanyId = String(
+        providedId || req.params?.companyId || req.body?.companyId || req.query?.companyId || ""
+    );
+
+    const resolvedCompanyId = authCompanyId || fallbackCompanyId;
+    if (!resolvedCompanyId) {
+        throw new apierror(400, "Company ID is required");
+    }
+
+    return resolvedCompanyId;
+};
+
+const parseAndValidateDeadline = (value) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        throw new apierror(400, "Invalid application deadline");
+    }
+
+    // Date-only input from UI should remain valid for the full selected day.
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        parsed.setHours(23, 59, 59, 999);
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (parsed < todayStart) {
+        throw new apierror(400, "Application deadline cannot be in the past");
+    }
+
+    return parsed;
+};
 
 const evaluateJobEligibility = (student, job) => {
     const reasons = [];
@@ -235,7 +284,7 @@ export const getJobDetails = asyncHandler(async(req,res)=>{
 // Creates an Application doc; also keeps quick applicants list on Job
 export const applyForJob = asyncHandler(async(req,res)=>{
     const { jobId } = req.params;
-    const { studentId } = req.body;
+    const studentId = resolveStudentId(req, req.body?.studentId);
 
     if (!jobId || !studentId) {
         throw new apierror(400, "Job ID and Student ID are required");
@@ -305,7 +354,8 @@ export const applyForJob = asyncHandler(async(req,res)=>{
 // Mark student interest state for a job.
 export const setJobInterest = asyncHandler(async (req, res) => {
     const { jobId } = req.params;
-    const { studentId, interest } = req.body;
+    const { interest } = req.body;
+    const studentId = resolveStudentId(req, req.body?.studentId);
 
     if (!jobId || !studentId || !interest) {
         throw new apierror(400, "Job ID, student ID and interest are required");
@@ -372,7 +422,7 @@ export const setJobInterest = asyncHandler(async (req, res) => {
 // Get jobs applied by student
 // Joins Application with Job; flattens to job fields + application status
 export const getStudentApplications = asyncHandler(async(req,res)=>{
-    const { studentId } = req.params;
+    const studentId = resolveStudentId(req, req.params?.studentId);
 
     if (!studentId) {
         throw new apierror(400, "Student ID is required");
@@ -400,7 +450,8 @@ export const getStudentApplications = asyncHandler(async(req,res)=>{
 
 // Withdraw application (student action)
 export const withdrawApplication = asyncHandler(async (req, res) => {
-    const { studentId, applicationId } = req.params;
+    const studentId = resolveStudentId(req, req.params?.studentId);
+    const { applicationId } = req.params;
 
     if (!studentId || !applicationId) {
         throw new apierror(400, "Student ID and Application ID are required");
@@ -590,7 +641,8 @@ export const updateApplicantStatus = asyncHandler(async(req,res)=>{
 // Create job (Company posts job)
 // Validates required arrays and fields; jobs are pending for admin approval
 export const createJob = asyncHandler(async(req,res)=>{
-    const { companyId, companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline, status } = req.body;
+    const authCompanyId = resolveCompanyId(req, req.body?.companyId);
+    const { companyName, jobTitle, jobDescription, requirements, location, salary, jobType, skills, minCGPA, applicationDeadline, status } = req.body;
 
     if (![jobTitle, jobDescription, companyName, location, applicationDeadline].every(field => field?.toString().trim().length > 0)) {
         throw new apierror(400, "All required fields must be filled");
@@ -604,9 +656,16 @@ export const createJob = asyncHandler(async(req,res)=>{
         throw new apierror(400, "Skills must be a non-empty array");
     }
 
+    const normalizedDeadline = parseAndValidateDeadline(applicationDeadline);
+
+    const company = await Company.findById(authCompanyId).select('companyName').lean();
+    if (!company) {
+        throw new apierror(404, 'Company not found');
+    }
+
     const job = await Job.create({
-        companyId,
-        companyName,
+        companyId: authCompanyId,
+        companyName: company.companyName || companyName,
         jobTitle,
         jobDescription,
         requirements,
@@ -615,7 +674,7 @@ export const createJob = asyncHandler(async(req,res)=>{
         jobType,
         skills,
         minCGPA,
-        applicationDeadline,
+        applicationDeadline: normalizedDeadline,
         status: "pending"
     });
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Search, Building2, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 
 export default function AllCompanies() {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,7 +21,8 @@ export default function AllCompanies() {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/companies?page=${page}&limit=${limit}&search=${search}`
+        `${API_BASE_URL}/api/v1/admin/companies?page=${page}&limit=${limit}&search=${search}`,
+        { credentials: 'include' }
       );
       const data = await response.json();
       
@@ -30,28 +32,28 @@ export default function AllCompanies() {
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
-      alert('Failed to fetch companies');
+      window.appAlert('Failed to fetch companies');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (companyId) => {
-    if (!window.confirm('Are you sure you want to delete this company and all its jobs?')) return;
+    if (!(await window.appConfirm('Are you sure you want to delete this company and all its jobs?'))) return;
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/companies/${companyId}`,
-        { method: 'DELETE' }
+        `${API_BASE_URL}/api/v1/admin/companies/${companyId}`,
+        { method: 'DELETE', credentials: 'include' }
       );
       const data = await response.json();
       if (data.success) {
-        alert('Company deleted successfully');
+        window.appAlert('Company deleted successfully');
         fetchCompanies();
       }
     } catch (error) {
       console.error('Failed to delete company:', error);
-      alert('Failed to delete company');
+      window.appAlert('Failed to delete company');
     }
   };
 
@@ -67,7 +69,8 @@ export default function AllCompanies() {
       try {
         setJobsLoading(true);
         const response = await fetch(
-          `http://localhost:8000/api/v1/admin/companies/${companyId}/jobs`
+          `${API_BASE_URL}/api/v1/admin/companies/${companyId}/jobs`,
+          { credentials: 'include' }
         );
         const data = await response.json();
 
@@ -76,7 +79,7 @@ export default function AllCompanies() {
         }
       } catch (error) {
         console.error('Failed to fetch company jobs:', error);
-        alert('Failed to load company jobs');
+        window.appAlert('Failed to load company jobs');
       } finally {
         setJobsLoading(false);
       }

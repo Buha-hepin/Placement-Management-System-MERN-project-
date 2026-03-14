@@ -31,6 +31,90 @@ export async function registerUser(payload) {
   return data;
 }
 
+export async function requestStudentRegistrationOtp(enrollmentNo) {
+  const url = `${BASE_URL}/api/v1/users/student-registration/request-otp`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ enrollmentNo }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function verifyStudentRegistrationOtp(enrollmentNo, otp) {
+  const url = `${BASE_URL}/api/v1/users/student-registration/verify-otp`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ enrollmentNo, otp }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function completeStudentRegistration(payload) {
+  const url = `${BASE_URL}/api/v1/users/student-registration/complete`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 export async function loginUser(payload) {
   console.log('loginUser payload:', payload);
   const url = `${BASE_URL}/api/v1/users/login`;
@@ -65,6 +149,33 @@ export async function loginUser(payload) {
   return data;
 }
 
+export async function logoutUser() {
+  const url = `${BASE_URL}/api/v1/users/logout`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 export async function verifyEmail(email, otp) {
   const url = `${BASE_URL}/api/v1/users/verify-email`;
 
@@ -74,6 +185,32 @@ export async function verifyEmail(email, otp) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, otp }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function verifyRegistrationOtp(enrollmentNo, otp) {
+  const url = `${BASE_URL}/api/v1/users/verify-registration-otp`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enrollmentNo, otp }),
     credentials: 'include'
   });
 
@@ -257,6 +394,172 @@ export async function uploadResume(studentId, formData) {
 
   return data;
 }
+
+export async function getPlacementMaterials() {
+  const url = `${BASE_URL}/api/v1/materials`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function uploadPlacementMaterial(formData) {
+  const url = `${BASE_URL}/api/v1/materials/upload`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function deletePlacementMaterial(materialId) {
+  const url = `${BASE_URL}/api/v1/materials/${materialId}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getStudentMasterRecords(page = 1, limit = 20, search = '') {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    search: String(search || '')
+  });
+  const url = `${BASE_URL}/api/v1/admin/students/master?${query.toString()}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function bulkUploadStudentMaster(records) {
+  const url = `${BASE_URL}/api/v1/admin/students/master/bulk`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function deleteStudentMasterRecord(recordId) {
+  const url = `${BASE_URL}/api/v1/admin/students/master/${recordId}`;
+  const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+  let data;
+  try { data = await res.json(); } catch { if (!res.ok) throw new Error(res.statusText || 'Request failed'); return null; }
+  if (!res.ok) { throw new Error(data?.message || data?.error || res.statusText || 'Request failed'); }
+  return data;
+}
+
+export async function uploadStudentMasterCsv(formData) {
+  const url = `${BASE_URL}/api/v1/admin/students/master/upload-csv`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return data;
+}
+
 // Job APIs
 export async function getAllApprovedJobs(page = 1, limit = 10, search = "", location = "", jobType = "", studentId = "") {
   const url = `${BASE_URL}/api/v1/jobs/browse?page=${page}&limit=${limit}&search=${search}&location=${location}&jobType=${jobType}&studentId=${studentId}`;
@@ -744,7 +1047,9 @@ export async function getAllStudents(page = 1, limit = 10, search = "") {
 
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
 
   return data;
@@ -769,7 +1074,9 @@ export async function getAcademicMismatchStudents(page = 1, limit = 20, search =
 
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
 
   return data;
@@ -794,7 +1101,9 @@ export async function getStudentAcademicDetails(studentId) {
 
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
 
   return data;
@@ -820,7 +1129,37 @@ export async function updateStudentOfficialAcademics(studentId, adminAcademicRec
 
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function bulkUploadOfficialAcademics(records) {
+  const url = `${BASE_URL}/api/v1/admin/students/official-academics/bulk`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records }),
+    credentials: 'include'
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) throw new Error(res.statusText || 'Request failed');
+    return null;
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || res.statusText || 'Request failed';
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
 
   return data;
@@ -870,7 +1209,9 @@ export async function deleteStudent(studentId) {
 
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
 
   return data;

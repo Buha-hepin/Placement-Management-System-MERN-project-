@@ -2,6 +2,26 @@ import React, { useState } from 'react';
 import { FiSend, FiMapPin, FiBell } from 'react-icons/fi';
 import { createJob } from '../../services/api.js';
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveCompanyId = () => {
+  const direct = String(localStorage.getItem('companyId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // ignore malformed cached JSON
+  }
+
+  return '';
+};
+
 // PostJob: form to create a job; maps UI fields to backend Job schema
 export default function PostJob() {
   const [jobDetails, setJobDetails] = useState({
@@ -18,13 +38,15 @@ export default function PostJob() {
       setLoading(true);
       
       // Get company ID from localStorage
-      const companyId = localStorage.getItem('companyId');
+      const companyId = resolveCompanyId();
       const companyData = JSON.parse(localStorage.getItem('companyData') || '{}');
       
       if (!companyId) {
-        alert('Please login as company first!');
+        window.appAlert('Please login as company first!');
         return;
       }
+
+      localStorage.setItem('companyId', companyId);
 
       // Prepare job data matching backend expectations
       const jobData = {
@@ -42,7 +64,7 @@ export default function PostJob() {
       };
 
       await createJob(jobData);
-      alert("✅ Job Published Successfully!");
+      window.appAlert("✅ Job Published Successfully!");
       
       // Reset form
       setJobDetails({
@@ -50,7 +72,7 @@ export default function PostJob() {
       });
     } catch (error) {
       console.error('Error posting job:', error);
-      alert('Failed to post job: ' + error.message);
+      window.appAlert('Failed to post job: ' + error.message);
     } finally {
       setLoading(false);
     }

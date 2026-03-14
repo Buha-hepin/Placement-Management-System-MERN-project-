@@ -10,12 +10,32 @@ const defaultCompanyProfile = {
   about: '',
 };
 
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveCompanyId = () => {
+  const direct = String(localStorage.getItem('companyId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // ignore malformed JSON
+  }
+
+  return '';
+};
+
 export default function CompanyProfile() {
   const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    const storedCompanyId = localStorage.getItem('companyId') || localStorage.getItem('userId');
+    const storedCompanyId = resolveCompanyId();
     const storedCompanyData = localStorage.getItem('companyData');
 
     if (storedCompanyData) {
@@ -64,10 +84,10 @@ export default function CompanyProfile() {
 
   const editprofile = async () => {
     try {
-      const companyId = localStorage.getItem('companyId') || localStorage.getItem('userId');
+      const companyId = resolveCompanyId();
 
       if (!companyId) {
-        alert('Company session not found. Please login again.');
+        window.appAlert('Company session not found. Please login again.');
         return;
       }
 
@@ -93,11 +113,11 @@ export default function CompanyProfile() {
         localStorage.setItem('companyData', JSON.stringify(response.data));
       }
 
-      alert('Company profile updated successfully!');
+      window.appAlert('Company profile updated successfully!');
 
     } catch (error) {
       console.error('Error updating company profile:', error);
-      alert(error.message || 'Failed to update company profile');
+      window.appAlert(error.message || 'Failed to update company profile');
     } finally {
       setIsSaving(false);
     }
