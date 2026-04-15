@@ -8,9 +8,6 @@ const resolveCompanyId = () => {
   const direct = String(localStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
     const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
@@ -27,8 +24,7 @@ export default function PostJob() {
   const [jobDetails, setJobDetails] = useState({
     companyName: '', role: '', description: '', salary: '', location: '', type: 'Full-time', deadline: '', skills: '', requirements: '', minCGPA: '6.0'
   });
-  
-  const [isPublishToggleOn, setIsPublishToggleOn] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => setJobDetails({ ...jobDetails, [e.target.name]: e.target.value });

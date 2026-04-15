@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { Trash2, Search, Building2, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 

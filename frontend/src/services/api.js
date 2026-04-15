@@ -17,7 +17,7 @@ export async function registerUser(payload) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     // Non-JSON response
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
@@ -46,7 +46,7 @@ export async function requestStudentRegistrationOtp(enrollmentNo) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -74,7 +74,7 @@ export async function verifyStudentRegistrationOtp(enrollmentNo, otp) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -102,7 +102,7 @@ export async function completeStudentRegistration(payload) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -127,16 +127,11 @@ export async function loginUser(payload) {
     body: JSON.stringify(payload),
     credentials: 'include'
   });
-
-  
-  // Store user role in localStorage id store by the login.jsx(51)
-  localStorage.setItem('userRole', payload.role);
-  
  
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -163,7 +158,7 @@ export async function logoutUser() {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -191,7 +186,7 @@ export async function verifyEmail(email, otp) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -217,7 +212,7 @@ export async function verifyRegistrationOtp(enrollmentNo, otp) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -245,7 +240,7 @@ export async function forgotPassword(email, role) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -273,7 +268,7 @@ export async function resetPassword(email, otp, newPassword, role) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -301,7 +296,7 @@ export async function getStudentProfile(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -329,7 +324,7 @@ export async function updateStudentProfile(studentId, payload) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -357,7 +352,7 @@ export async function updateStudentSkills(studentId, skills) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -382,7 +377,7 @@ export async function uploadResume(studentId, formData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -407,7 +402,7 @@ export async function getPlacementMaterials() {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -432,7 +427,7 @@ export async function uploadPlacementMaterial(formData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -457,7 +452,7 @@ export async function deletePlacementMaterial(materialId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -487,7 +482,7 @@ export async function getStudentMasterRecords(page = 1, limit = 20, search = '')
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -513,7 +508,7 @@ export async function bulkUploadStudentMaster(records) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -547,7 +542,7 @@ export async function uploadStudentMasterCsv(formData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -575,7 +570,7 @@ export async function getAllApprovedJobs(page = 1, limit = 10, search = "", loca
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -602,7 +597,7 @@ export async function getJobDetails(jobId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -630,7 +625,7 @@ export async function applyForJob(jobId, studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -658,7 +653,7 @@ export async function setJobInterest(jobId, studentId, interest) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -685,7 +680,7 @@ export async function getCompanyPublicProfile(companyId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -712,7 +707,7 @@ export async function getCompanyProfile(companyId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -740,7 +735,7 @@ export async function updateCompanyProfile(companyId, payload) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -767,7 +762,7 @@ export async function getStudentApplications(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -795,7 +790,7 @@ export async function withdrawApplication(studentId, applicationId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -823,7 +818,7 @@ export async function getCompanyJobs(companyId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -849,7 +844,7 @@ export async function deleteCompanyJob(companyId, jobId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -878,7 +873,7 @@ export async function getJobApplicants(jobId, params = {}) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -905,7 +900,7 @@ export async function updateApplicantStatus(jobId, applicationId, status) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -931,7 +926,7 @@ export async function updateApplicantsBulkStatus(jobId, applicationIds, status) 
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -960,7 +955,7 @@ export async function createJob(jobData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -989,7 +984,7 @@ export async function editJob(companyId, jobId, jobData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1015,7 +1010,7 @@ export async function getAdminDashboard() {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1040,7 +1035,7 @@ export async function getAllStudents(page = 1, limit = 10, search = "") {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1067,7 +1062,7 @@ export async function getAcademicMismatchStudents(page = 1, limit = 20, search =
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1094,7 +1089,7 @@ export async function getStudentAcademicDetails(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1122,7 +1117,7 @@ export async function updateStudentOfficialAcademics(studentId, adminAcademicRec
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1150,7 +1145,7 @@ export async function bulkUploadOfficialAcademics(records) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1177,7 +1172,7 @@ export async function getAllCompanies(page = 1, limit = 10, search = "") {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1202,7 +1197,7 @@ export async function deleteStudent(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1229,7 +1224,7 @@ export async function deleteCompany(companyId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1257,7 +1252,7 @@ export async function createAptitudeTest(companyId, formData) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1283,7 +1278,7 @@ export async function getCompanyTests(companyId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1309,7 +1304,7 @@ export async function getTestDetails(testId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1335,7 +1330,7 @@ export async function getStudentAvailableTests(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1362,7 +1357,7 @@ export async function startTest(testId, studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1389,7 +1384,7 @@ export async function saveAnswer(attemptId, questionIndex, answer, tabSwitches =
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1415,7 +1410,7 @@ export async function submitTest(attemptId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1441,7 +1436,7 @@ export async function getTestResults(attemptId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1467,7 +1462,7 @@ export async function getTestAnalytics(testId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }
@@ -1493,7 +1488,7 @@ export async function getStudentTestAttempts(studentId) {
   let data;
   try {
     data = await res.json();
-  } catch (err) {
+  } catch {
     if (!res.ok) throw new Error(res.statusText || 'Request failed');
     return null;
   }

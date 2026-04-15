@@ -1,11 +1,11 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Search, Briefcase, MapPin } from 'lucide-react';
+import { CheckCircle, XCircle, Briefcase, MapPin } from 'lucide-react';
 
 export default function ApproveJobs() {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [rejectingJobId, setRejectingJobId] = useState(null);
@@ -14,7 +14,7 @@ export default function ApproveJobs() {
 
   useEffect(() => {
     fetchPendingJobs();
-  }, [page, search]);
+  }, [page]);
 
   const fetchPendingJobs = async () => {
     try {

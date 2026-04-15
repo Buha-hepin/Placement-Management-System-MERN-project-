@@ -11,7 +11,8 @@ export default function EditJobModal({ job, companyId, onClose, onSuccess }) {
     jobType: 'Full-time',
     skills: '',
     requirements: '',
-    applicationDeadline: ''
+    applicationDeadline: '',
+    minCGPA: '0'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +27,8 @@ export default function EditJobModal({ job, companyId, onClose, onSuccess }) {
         jobType: job.jobType || 'Full-time',
         skills: Array.isArray(job.skills) ? job.skills.join(', ') : '',
         requirements: Array.isArray(job.requirements) ? job.requirements.join(', ') : '',
-        applicationDeadline: job.applicationDeadline ? job.applicationDeadline.split('T')[0] : ''
+        applicationDeadline: job.applicationDeadline ? job.applicationDeadline.split('T')[0] : '',
+        minCGPA: job.minCGPA || '0'
       });
     }
   }, [job]);
@@ -50,12 +52,13 @@ export default function EditJobModal({ job, companyId, onClose, onSuccess }) {
         jobType: formData.jobType,
         skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : [],
         requirements: formData.requirements ? formData.requirements.split(',').map(r => r.trim()) : [],
-        applicationDeadline: formData.applicationDeadline
+        applicationDeadline: formData.applicationDeadline,
+        minCGPA: Number(formData.minCGPA || 0)
       };
 
       await editJob(companyId, job._id, jobData);
       window.appAlert('✅ Job updated successfully!');
-      onSuccess();
+      onSuccess({ _id: job._id, ...jobData });
       onClose();
     } catch (err) {
       console.error('Error updating job:', err);
@@ -155,6 +158,21 @@ export default function EditJobModal({ job, companyId, onClose, onSuccess }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum CGPA</label>
+              <input
+                type="number"
+                name="minCGPA"
+                min="0"
+                max="10"
+                step="0.1"
+                value={formData.minCGPA}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                placeholder="e.g. 6.5"
+              />
             </div>
           </div>
 

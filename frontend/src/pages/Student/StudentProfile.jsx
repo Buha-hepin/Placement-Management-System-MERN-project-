@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef } from 'react';
 import { Edit2, FileText, Upload, Download, X, Check } from 'lucide-react'; 
 import { useNavigate } from 'react-router-dom';
 import { getStudentProfile, updateStudentProfile, updateStudentSkills, uploadResume } from '../../services/api.js';
+import { evaluateStudentProfileCompletion } from '../../utils/studentProfileCompletion';
 
 const buildDefaultSemesters = () => (
   Array.from({ length: 8 }, (_, index) => ({
@@ -34,7 +36,7 @@ const mergeSemesterRecords = (records = []) => {
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveStoredStudentId = () => {
-  const direct = String(localStorage.getItem('studentId') || localStorage.getItem('userId') || '').trim();
+  const direct = String(localStorage.getItem('studentId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
   try {
@@ -64,9 +66,19 @@ const StudentProfile = () => {
     semesterAcademicRecords: buildDefaultSemesters()
   });
   const [skillInput, setSkillInput] = useState('');
-  const [resumeFile, setResumeFile] = useState(null);
   const [uploadingResume, setUploadingResume] = useState(false);
   const officialJsonInputRef = useRef(null);
+
+  const fieldLabelMap = {
+    fullName: 'Full Name',
+    email: 'Email',
+    branch: 'Branch',
+    phone: 'Phone',
+    cgpa: 'CGPA',
+    skills: 'Skills',
+    resume: 'Resume',
+    semesterAcademicRecords: 'Semester Academic Records'
+  };
 
   const resolveResumeUrl = (url) => {
     if (!url) return '';
@@ -83,7 +95,6 @@ const StudentProfile = () => {
       fetchStudentProfile();
     } else {
       localStorage.removeItem('studentId');
-      localStorage.removeItem('userId');
       localStorage.removeItem('studentData');
       setLoading(false);
       setProfileError('Student session is invalid. Please login again.');
@@ -105,8 +116,15 @@ const StudentProfile = () => {
         const data = response.data;
         if (data?._id) {
           localStorage.setItem('studentId', data._id);
-          localStorage.setItem('userId', data._id);
         }
+
+        const completionState = evaluateStudentProfileCompletion(data);
+        window.dispatchEvent(
+          new CustomEvent('student-profile-completion-updated', {
+            detail: completionState
+          })
+        );
+
         setProfileData(data);
         setFormData({
           fullname: data.fullname || '',
@@ -125,7 +143,6 @@ const StudentProfile = () => {
 
       if (String(message).toLowerCase().includes('student not found')) {
         localStorage.removeItem('studentId');
-        localStorage.removeItem('userId');
         localStorage.removeItem('studentData');
       }
     } finally {
@@ -168,6 +185,7 @@ const StudentProfile = () => {
 
     try {
       setLoading(true);
+      await updateStudentSkills(targetStudentId, formData.skills);
       await updateStudentProfile(targetStudentId, {
         fullname: formData.fullname,
         email: formData.email,
@@ -182,7 +200,6 @@ const StudentProfile = () => {
           backlogSubjects: Array.isArray(record.backlogSubjects) ? record.backlogSubjects : []
         }))
       });
-      await updateStudentSkills(targetStudentId, formData.skills);
       await fetchStudentProfile(targetStudentId);
       setIsEditing(false);
     } catch (error) {
@@ -208,9 +225,28 @@ const StudentProfile = () => {
       setUploadingResume(true);
       const formDataFile = new FormData();
       formDataFile.append('resume', file);
-      await uploadResume(targetStudentId, formDataFile);
-      await fetchStudentProfile(targetStudentId);
-      window.appAlert('Resume uploaded successfully');
+      const response = await uploadResume(targetStudentId, formDataFile);
+      const updatedStudent = response?.data || {};
+
+      // Keep in-progress form edits intact; only refresh profile snapshot fields.
+      setProfileData((prev) => ({
+        ...(prev || {}),
+        ...updatedStudent
+      }));
+
+      const completionState = evaluateStudentProfileCompletion({
+        ...(updatedStudent || {}),
+        ...formData,
+        resumeUrl: updatedStudent?.resumeUrl || profileData?.resumeUrl || ''
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('student-profile-completion-updated', {
+          detail: completionState
+        })
+      );
+
+      window.appAlert('Resume uploaded successfully. Complete remaining profile fields and click Save.');
     } catch (error) {
       console.error('Failed to upload resume:', error);
       window.appAlert(error?.message || 'Failed to upload resume');
@@ -322,6 +358,16 @@ const StudentProfile = () => {
     return <div className="max-w-4xl mx-auto p-6 text-center">Profile not found.</div>;
   }
 
+  const completion = evaluateStudentProfileCompletion({
+    ...profileData,
+    ...formData,
+    resumeUrl: profileData?.resumeUrl || ''
+  });
+  const totalRequiredFields = Object.keys(fieldLabelMap).length;
+  const completedFields = totalRequiredFields - completion.missingFields.length;
+  const completionPercent = Math.max(0, Math.min(100, Math.round((completedFields / totalRequiredFields) * 100)));
+  const missingFieldLabels = completion.missingFields.map((key) => fieldLabelMap[key] || key);
+
   const initials = profileData.fullname
     ?.split(' ')
     .map(n => n[0])
@@ -394,6 +440,26 @@ const StudentProfile = () => {
                   <X size={16}/> Cancel
                 </button>
               </div>
+            )}
+          </div>
+
+          <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <p className="font-semibold text-blue-900">Profile Completion</p>
+              <p className="font-bold text-blue-800">{completionPercent}%</p>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-blue-100 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-500"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+            {completion.isComplete ? (
+              <p className="mt-2 text-xs text-green-700 font-medium">All compulsory profile data is completed.</p>
+            ) : (
+              <p className="mt-2 text-xs text-amber-800">
+                Missing compulsory fields: {missingFieldLabels.join(', ')}
+              </p>
             )}
           </div>
 
@@ -596,20 +662,18 @@ const StudentProfile = () => {
                ) : (
                 <p className="text-gray-500 text-sm">No resume uploaded</p>
                )}
-               {isEditing && (
-                <label className="mt-3 block">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleResumeUpload}
-                    disabled={uploadingResume}
-                    className="hidden"
-                  />
-                  <span className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition cursor-pointer">
-                    <Upload size={16}/> {uploadingResume ? 'Uploading...' : 'Upload Resume'}
-                  </span>
-                </label>
-               )}
+               <label className="mt-3 block">
+                 <input
+                   type="file"
+                   accept=".pdf,.doc,.docx"
+                   onChange={handleResumeUpload}
+                   disabled={uploadingResume}
+                   className="hidden"
+                 />
+                 <span className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg font-medium transition cursor-pointer">
+                   <Upload size={16}/> {uploadingResume ? 'Uploading...' : profileData.resumeUrl ? 'Replace Resume' : 'Upload Resume'}
+                 </span>
+               </label>
              </div>
              {/* Skills UI */}
              <div>

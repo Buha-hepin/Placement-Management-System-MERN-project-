@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { FiSearch, FiEye, FiDownload } from 'react-icons/fi';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getJobApplicants, getCompanyJobs, updateApplicantStatus, updateApplicantsBulkStatus } from '../../services/api.js';
 
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
@@ -8,9 +9,6 @@ const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim
 const resolveCompanyId = () => {
   const direct = String(localStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
-
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
 
   try {
     const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
@@ -26,7 +24,6 @@ const resolveCompanyId = () => {
 // CompanyApplicants: list applicants for a selected job; update statuses
 export default function CompanyApplicants() {
   const { jobId } = useParams();
-  const navigate = useNavigate();
   
   const [applicants, setApplicants] = useState([]);
   const [jobTitle, setJobTitle] = useState('');
@@ -42,7 +39,7 @@ export default function CompanyApplicants() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const limit = 20;
   const [resumeUrl, setResumeUrl] = useState('');
   const [showResume, setShowResume] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -116,10 +113,13 @@ export default function CompanyApplicants() {
   };
 
   const handleStatusChange = async (applicationId, newStatus) => {
+    const previousApplicants = applicants;
+    setApplicants(prev => prev.map(a => a._id === applicationId ? { ...a, status: newStatus } : a));
+
     try {
       await updateApplicantStatus(selectedJobId, applicationId, newStatus);
-      setApplicants(prev => prev.map(a => a._id === applicationId ? { ...a, status: newStatus } : a));
     } catch (e) {
+      setApplicants(previousApplicants);
       window.appAlert('Failed to update status: ' + (e.message || '')); 
     }
   };
@@ -226,12 +226,16 @@ export default function CompanyApplicants() {
                 <option value="no-show">Set: No Show</option>
               </select>
               <button disabled={selected.size===0 || loading} onClick={async ()=>{
+                const previousApplicants = applicants;
+                setApplicants(prev => prev.map(a => selected.has(a._id) ? { ...a, status: bulkStatus } : a));
                 try {
                   setLoading(true);
                   await updateApplicantsBulkStatus(selectedJobId, Array.from(selected), bulkStatus);
-                  setApplicants(prev => prev.map(a => selected.has(a._id) ? { ...a, status: bulkStatus } : a));
                   setSelected(new Set()); setSelectAll(false);
-                } catch (e) { window.appAlert('Bulk update failed: ' + (e.message || '')); } finally { setLoading(false); }
+                } catch (e) { 
+                  setApplicants(previousApplicants);
+                  window.appAlert('Bulk update failed: ' + (e.message || '')); 
+                } finally { setLoading(false); }
               }} className="px-3 py-2 border rounded-lg text-sm bg-blue-600 text-white disabled:opacity-50">Apply Bulk Update</button>
               <span className="text-xs text-gray-500">Selected: {selected.size}</span>
             </div>

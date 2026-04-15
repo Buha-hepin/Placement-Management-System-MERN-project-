@@ -34,14 +34,14 @@ function Login() {
     setError("");
 
     try {
-      // Clear stale local ids/session markers before a new login attempt.
-      localStorage.removeItem('studentId');
-      localStorage.removeItem('studentData');
-      localStorage.removeItem('companyId');
-      localStorage.removeItem('companyData');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('role');
-      localStorage.removeItem('userRole');
+      // Clear only current-role stale data; do not wipe other role sessions in other tabs.
+      if (role === 'student') {
+        localStorage.removeItem('studentId');
+        localStorage.removeItem('studentData');
+      } else if (role === 'company') {
+        localStorage.removeItem('companyId');
+        localStorage.removeItem('companyData');
+      }
 
       // Handle student/company/admin login via API so auth cookie is set.
       let dataToSend = { role };
@@ -61,10 +61,6 @@ function Login() {
         throw new Error('Invalid login response. Please try again.');
       }
 
-      localStorage.setItem('userId', role === 'admin' ? 'admin' : resolvedId);
-      localStorage.setItem('role', role);
-      localStorage.setItem('userRole', role);
-
       // Store user data in localStorage
       if (role === 'student' && isValidMongoId(response.data?._id)) {
         localStorage.setItem('studentId', response.data._id);
@@ -72,10 +68,20 @@ function Login() {
       } else if (role === 'company' && isValidMongoId(response.data?._id)) {
         localStorage.setItem('companyId', response.data._id);
         localStorage.setItem('companyData', JSON.stringify(response.data));
+      } else if (role === 'admin') {
+        localStorage.setItem('adminSession', 'true');
       }
 
       // Navigate based on role
-      if (role === 'student') navigate('/student');
+      if (role === 'student') {
+        if (response?.data?.isProfileComplete === false) {
+          const missing = Array.isArray(response?.data?.missingProfileFields)
+            ? response.data.missingProfileFields.join(', ')
+            : '';
+          window.appAlert(`Complete your profile first after login.${missing ? ` Missing: ${missing}` : ''}`);
+        }
+        navigate('/student');
+      }
       else if (role === 'company') navigate('/company/profile');
       else if (role === 'admin') navigate('/admin/dashboard');
     } catch (err) {

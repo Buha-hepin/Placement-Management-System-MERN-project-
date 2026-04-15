@@ -5,6 +5,9 @@ import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import jwt from "jsonwebtoken";
+
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "dev_access_secret_change_me";
 
 const parseAndValidateDeadline = (value) => {
     if (!value) {
@@ -31,12 +34,26 @@ const parseAndValidateDeadline = (value) => {
 };
 
 const resolveCompanyId = (req) => {
+    const tokenCompanyId = (() => {
+        const token = String(req.cookies?.["company-token"] || "").trim();
+        if (!token) return "";
+
+        try {
+            const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
+            if (decoded?.role !== "company") return "";
+            return String(decoded?.id || "").trim();
+        } catch {
+            return "";
+        }
+    })();
+
     const authCompanyId = String(req.user?.id || "");
     const paramCompanyId = String(req.params?.id || "");
     const bodyCompanyId = String(req.body?.companyId || "");
     const queryCompanyId = String(req.query?.companyId || "");
 
-    const resolvedCompanyId = authCompanyId || paramCompanyId || bodyCompanyId || queryCompanyId;
+    // Logged-in company cookie is authoritative for company self-service routes.
+    const resolvedCompanyId = tokenCompanyId || paramCompanyId || bodyCompanyId || queryCompanyId || authCompanyId;
     if (!resolvedCompanyId) {
         throw new apierror(400, "Company ID is required");
     }
@@ -95,7 +112,7 @@ export const editCompanyDetails = asyncHandler(async (req, res) => {
 // Maps request fields to Job schema; includes companyName from DB
 export const postJob = asyncHandler(async (req, res) => {
     const id = resolveCompanyId(req);
-    const { title, description, location, salary, requirements, skillsRequired, jobType, applicationDeadline } = req.body;
+    const { title, description, location, salary, requirements, skillsRequired, jobType, applicationDeadline, minCGPA } = req.body;
 
     if (!id) {
         throw new apierror(400, "Company ID is required");
@@ -123,6 +140,7 @@ export const postJob = asyncHandler(async (req, res) => {
         salary,
         jobType,
         skills: Array.isArray(skillsRequired) ? skillsRequired : [],
+        minCGPA: Number(minCGPA || 0),
         applicationDeadline: normalizedDeadline,
         // Keep pending by default to allow admin flow, adjust as needed
         status: "pending"
@@ -159,7 +177,7 @@ export const fetchJobsByCompany = asyncHandler(async (req, res) => {
 export const editCompanyJob = asyncHandler(async (req, res) => {
     const id = resolveCompanyId(req);
     const { jobId } = req.params;
-    const { jobTitle, jobDescription, location, salary, jobType, skills, requirements, applicationDeadline } = req.body;
+    const { jobTitle, jobDescription, location, salary, jobType, skills, requirements, applicationDeadline, minCGPA } = req.body;
 
     if (!id || !jobId) {
         throw new apierror(400, "Company ID and Job ID are required");
@@ -178,6 +196,9 @@ export const editCompanyJob = asyncHandler(async (req, res) => {
     if (jobType) job.jobType = jobType;
     if (skills) job.skills = Array.isArray(skills) ? skills : [];
     if (requirements) job.requirements = Array.isArray(requirements) ? requirements : [];
+    if (minCGPA !== undefined && minCGPA !== null && minCGPA !== "") {
+        job.minCGPA = Number(minCGPA);
+    }
     if (applicationDeadline) {
         job.applicationDeadline = parseAndValidateDeadline(applicationDeadline);
     }

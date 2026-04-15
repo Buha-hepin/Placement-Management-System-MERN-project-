@@ -8,9 +8,6 @@ const resolveCompanyId = () => {
   const direct = String(localStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
     const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();

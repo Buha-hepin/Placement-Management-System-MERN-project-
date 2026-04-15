@@ -5,15 +5,13 @@ import { getStudentAvailableTests } from '../../services/api';
 
 export default function StudentAptitudeTests() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [tests, setTests] = useState([]);
-  const [error, setError] = useState('');
   const studentId = localStorage.getItem('studentId');
+  const [loading, setLoading] = useState(Boolean(studentId));
+  const [tests, setTests] = useState([]);
+  const [error, setError] = useState(studentId ? '' : 'Student not logged in');
 
   useEffect(() => {
     if (!studentId) {
-      setError('Student not logged in');
-      setLoading(false);
       return;
     }
 

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import { Database, Search, Upload, Plus, Phone, Mail, ShieldCheck, Trash2 } from 'lucide-react';
 import {

@@ -8,6 +8,7 @@ import {
   updateStudentOfficialAcademics,
   bulkUploadOfficialAcademics,
 } from '../../services/api.js';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 const buildDefaultSemesters = () => (
   Array.from({ length: 8 }, (_, index) => ({

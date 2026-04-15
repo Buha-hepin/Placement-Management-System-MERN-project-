@@ -8,6 +8,7 @@ import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { sendNotificationEmail } from "../utils/emailSender.js";
+import { evaluateStudentProfileCompletion } from "../utils/studentProfileCompletion.js";
 
 const buildStatusUpdateMessage = (name, status, jobTitle) => {
     const safeName = name || "Student";
@@ -116,6 +117,13 @@ const evaluateJobEligibility = (student, job) => {
     if (!student) {
         reasons.push("Student profile was not found.");
         return { isEligible: false, reasons };
+    }
+
+    const completion = evaluateStudentProfileCompletion(student);
+    if (!completion.isComplete) {
+        reasons.push(
+            `Complete your student profile first. Missing: ${completion.missingFields.join(', ')}`
+        );
     }
 
     if (student.isPlacementBlocked) {
@@ -241,7 +249,7 @@ export const getAllApprovedJobs = asyncHandler(async(req,res)=>{
 
     let student = null;
     if (studentId) {
-        student = await User.findById(studentId).select('cgpa isPlacementBlocked').lean();
+        student = await User.findById(studentId).select('fullname email branch cgpa phone skills resumeUrl semesterAcademicRecords isPlacementBlocked').lean();
     }
 
     const jobsWithMeta = jobs.map((job) => attachInterestMeta(job, studentId, student));
@@ -272,7 +280,7 @@ export const getJobDetails = asyncHandler(async(req,res)=>{
     }
 
     const student = studentId
-        ? await User.findById(studentId).select('cgpa isPlacementBlocked').lean()
+        ? await User.findById(studentId).select('fullname email branch cgpa phone skills resumeUrl semesterAcademicRecords isPlacementBlocked').lean()
         : null;
 
     return res.status(200).json(
@@ -290,7 +298,7 @@ export const applyForJob = asyncHandler(async(req,res)=>{
         throw new apierror(400, "Job ID and Student ID are required");
     }
 
-    const student = await User.findById(studentId).select('fullname email cgpa isPlacementBlocked noShowCount');
+    const student = await User.findById(studentId).select('fullname email branch cgpa phone skills resumeUrl semesterAcademicRecords isPlacementBlocked noShowCount');
     if (!student) {
         throw new apierror(404, "Student not found");
     }
@@ -370,7 +378,7 @@ export const setJobInterest = asyncHandler(async (req, res) => {
         throw new apierror(404, "Job not found");
     }
 
-    const student = await User.findById(studentId).select('fullname email cgpa isPlacementBlocked');
+    const student = await User.findById(studentId).select('fullname email branch cgpa phone skills resumeUrl semesterAcademicRecords isPlacementBlocked');
     if (!student) {
         throw new apierror(404, "Student not found");
     }
@@ -622,20 +630,20 @@ export const updateApplicantStatus = asyncHandler(async(req,res)=>{
         noShowPenalty = await applyNoShowPenalty(appDoc.studentId._id);
     }
 
-    let emailResult = null;
-    try {
-        emailResult = await sendStatusUpdateEmail({
-            to: appDoc.studentId?.email,
-            name: appDoc.studentId?.fullname,
-            status,
-            jobTitle: appDoc.jobId?.jobTitle
-        });
-    } catch (err) {
-        console.error('Auto status email failed:', err.message);
-        emailResult = { error: err.message };
-    }
+    const emailPayload = {
+        to: appDoc.studentId?.email,
+        name: appDoc.studentId?.fullname,
+        status,
+        jobTitle: appDoc.jobId?.jobTitle
+    };
 
-    return res.status(200).json(new apiResponse(200, { appDoc, emailResult, noShowPenalty }, 'Status updated'));
+    queueMicrotask(() => {
+        void sendStatusUpdateEmail(emailPayload).catch((err) => {
+            console.error('Auto status email failed:', err.message);
+        });
+    });
+
+    return res.status(200).json(new apiResponse(200, { appDoc, queuedEmail: true, noShowPenalty }, 'Status updated'));
 })
 
 // Create job (Company posts job)
@@ -678,42 +686,39 @@ export const createJob = asyncHandler(async(req,res)=>{
         status: "pending"
     });
 
-    // Notify verified students about new openings automatically.
-    let notificationSummary = null;
-    try {
-        const students = await User.find({ isEmailVerified: true }).select('email fullname').lean();
-        const recipients = students
-            .map((s) => s.email)
-            .filter((email) => typeof email === 'string' && email.trim().length > 0);
+    // Notify verified students in the background so job posting returns immediately.
+    queueMicrotask(() => {
+        void (async () => {
+            try {
+                const students = await User.find({ isEmailVerified: true }).select('email fullname').lean();
+                const recipients = students
+                    .map((s) => s.email)
+                    .filter((email) => typeof email === 'string' && email.trim().length > 0);
 
-        if (recipients.length > 0) {
-            const subject = `New Job Posted: ${job.jobTitle}`;
-            const text = `${job.companyName} posted a new job: ${job.jobTitle} (${job.location}).`;
-            const html = `
-                <div style="font-family: Arial, sans-serif; padding: 16px;">
-                    <h3 style="color: #1e40af;">New Job Opportunity</h3>
-                    <p><strong>${job.companyName}</strong> posted a new role: <strong>${job.jobTitle}</strong>.</p>
-                    <p>Location: ${job.location}</p>
-                    <p>This is an automated alert from Placement Management System.</p>
-                </div>
-            `;
+                if (recipients.length > 0) {
+                    const subject = `New Job Posted: ${job.jobTitle}`;
+                    const text = `${job.companyName} posted a new job: ${job.jobTitle} (${job.location}).`;
+                    const html = `
+                        <div style="font-family: Arial, sans-serif; padding: 16px;">
+                            <h3 style="color: #1e40af;">New Job Opportunity</h3>
+                            <p><strong>${job.companyName}</strong> posted a new role: <strong>${job.jobTitle}</strong>.</p>
+                            <p>Location: ${job.location}</p>
+                            <p>This is an automated alert from Placement Management System.</p>
+                        </div>
+                    `;
 
-            const settled = await Promise.allSettled(
-                recipients.map((to) => sendNotificationEmail(to, subject, html, text))
-            );
-            const sent = settled.filter((r) => r.status === 'fulfilled').length;
-            const failed = settled.length - sent;
-            notificationSummary = { recipients: recipients.length, sent, failed };
-        } else {
-            notificationSummary = { recipients: 0, sent: 0, failed: 0 };
-        }
-    } catch (err) {
-        console.error('Auto new-job notification failed:', err.message);
-        notificationSummary = { error: err.message };
-    }
+                    await Promise.allSettled(
+                        recipients.map((to) => sendNotificationEmail(to, subject, html, text))
+                    );
+                }
+            } catch (err) {
+                console.error('Auto new-job notification failed:', err.message);
+            }
+        })();
+    });
 
     return res.status(201).json(
-        new apiResponse(201, { job, notificationSummary }, "Job posted successfully")
+        new apiResponse(201, { job, queuedNotification: true }, "Job posted successfully")
     );
 })
 
@@ -780,21 +785,19 @@ export const approveJob = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Job not found");
     }
 
-    let emailResult = null;
-    try {
-        emailResult = await sendJobModerationEmail({
+    queueMicrotask(() => {
+        void sendJobModerationEmail({
             to: job.companyId?.email,
             companyName: job.companyId?.companyName || job.companyName,
             jobTitle: job.jobTitle,
             decision: "approved"
+        }).catch((err) => {
+            console.error("Approve notification email failed:", err.message);
         });
-    } catch (err) {
-        console.error("Approve notification email failed:", err.message);
-        emailResult = { error: err.message };
-    }
+    });
 
     return res.status(200).json(
-        new apiResponse(200, { job, emailResult }, "Job approved successfully")
+        new apiResponse(200, { job, queuedEmail: true }, "Job approved successfully")
     );
 })
 
@@ -817,22 +820,20 @@ export const rejectJob = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Job not found");
     }
 
-    let emailResult = null;
-    try {
-        emailResult = await sendJobModerationEmail({
+    queueMicrotask(() => {
+        void sendJobModerationEmail({
             to: job.companyId?.email,
             companyName: job.companyId?.companyName || job.companyName,
             jobTitle: job.jobTitle,
             decision: "rejected",
             rejectionReason
+        }).catch((err) => {
+            console.error("Reject notification email failed:", err.message);
         });
-    } catch (err) {
-        console.error("Reject notification email failed:", err.message);
-        emailResult = { error: err.message };
-    }
+    });
 
     return res.status(200).json(
-        new apiResponse(200, { job, emailResult }, "Job rejected successfully")
+        new apiResponse(200, { job, queuedEmail: true }, "Job rejected successfully")
     );
 })
 
@@ -873,9 +874,8 @@ export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
         }
     }
 
-    let emailSummary = null;
-    try {
-        const settled = await Promise.allSettled(
+    queueMicrotask(() => {
+        void Promise.allSettled(
             updatedApps.map((app) =>
                 sendStatusUpdateEmail({
                     to: app.studentId?.email,
@@ -884,15 +884,10 @@ export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
                     jobTitle: app.jobId?.jobTitle
                 })
             )
-        );
-
-        const sent = settled.filter((r) => r.status === 'fulfilled').length;
-        const failed = settled.length - sent;
-        emailSummary = { recipients: updatedApps.length, sent, failed };
-    } catch (err) {
-        console.error('Bulk status auto email failed:', err.message);
-        emailSummary = { error: err.message };
-    }
+        ).catch((err) => {
+            console.error('Bulk status auto email failed:', err.message);
+        });
+    });
 
     return res.status(200).json(new apiResponse(200, {
         acknowledged: true,
@@ -900,7 +895,7 @@ export const updateApplicantsBulkStatus = asyncHandler(async(req,res)=>{
         modifiedCount: updatedApps.length,
         status,
         noShowBlocked,
-        emailSummary
+        queuedEmail: true
     }, 'Bulk status updated'));
 })
 

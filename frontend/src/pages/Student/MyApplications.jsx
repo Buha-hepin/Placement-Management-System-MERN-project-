@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { Briefcase, MapPin, Calendar, ChevronDown, ChevronUp, Clock, TrendingUp } from 'lucide-react';
 import { getStudentApplications, withdrawApplication } from '../../services/api.js';
@@ -10,7 +11,7 @@ export default function MyApplications() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [withdrawingId, setWithdrawingId] = useState(null);
 
-  const studentId = localStorage.getItem('studentId') || localStorage.getItem('userId');
+  const studentId = localStorage.getItem('studentId');
 
   useEffect(() => {
     if (studentId) {

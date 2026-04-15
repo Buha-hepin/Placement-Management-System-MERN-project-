@@ -377,8 +377,15 @@ export const saveAnswer = asyncHandler(async (req, res) => {
     const test = await AptitudeTest.findById(attempt.testId);
     const elapsedMinutes = (new Date() - attempt.startTime) / 60000;
     if (elapsedMinutes > test.timeLimit) {
-        // Auto-submit the test
-        return await submitTest(attemptId, "timeout");
+        // Auto-submit the test with timeout reason
+        const result = await performTestSubmit(attemptId, "timeout");
+        return res.status(200).json(
+            new apiResponse(
+                200,
+                { message: "Test auto-submitted due to time limit exceeded", ...result },
+                "Test submitted due to timeout"
+            )
+        );
     }
 
     // Update answer
@@ -415,6 +422,38 @@ export const saveAnswer = asyncHandler(async (req, res) => {
     );
 });
 
+// Internal helper: Perform test submission and evaluation (safe for internal calls)
+async function performTestSubmit(attemptId, submitReason = "completed") {
+    const attempt = await TestAttempt.findById(attemptId);
+    if (!attempt) {
+        throw new apierror(404, "Test attempt not found");
+    }
+
+    if (attempt.status !== "ongoing") {
+        throw new apierror(400, "Test already submitted");
+    }
+
+    attempt.submitTime = new Date();
+    attempt.submitReason = submitReason;
+    attempt.status = "submitted";
+    await attempt.save();
+
+    // Evaluate the test
+    await evaluateTest(attemptId);
+
+    // Get the latest evaluation
+    const updatedAttempt = await TestAttempt.findById(attemptId);
+
+    return {
+        score: updatedAttempt.score,
+        percentage: updatedAttempt.percentage,
+        passed: updatedAttempt.passed,
+        correctAnswers: updatedAttempt.correctAnswers,
+        wrongAnswers: updatedAttempt.wrongAnswers,
+        unansweredCount: updatedAttempt.unansweredCount
+    };
+}
+
 // Submit test
 export const submitTest = asyncHandler(async (req, res) => {
     const { attemptId } = req.params;
@@ -429,32 +468,12 @@ export const submitTest = asyncHandler(async (req, res) => {
         throw new apierror(403, "You are not authorized to submit this attempt");
     }
 
-    if (attempt.status !== "ongoing") {
-        throw new apierror(400, "Test already submitted");
-    }
-
-    attempt.submitTime = new Date();
-    attempt.submitReason = "completed";
-    attempt.status = "submitted";
-    await attempt.save();
-
-    // Evaluate the test
-    await evaluateTest(attemptId);
-
-    // Get the latest evaluation
-    const updatedAttempt = await TestAttempt.findById(attemptId);
+    const result = await performTestSubmit(attemptId, "completed");
 
     res.status(200).json(
         new apiResponse(
             200,
-            {
-                score: updatedAttempt.score,
-                percentage: updatedAttempt.percentage,
-                passed: updatedAttempt.passed,
-                correctAnswers: updatedAttempt.correctAnswers,
-                wrongAnswers: updatedAttempt.wrongAnswers,
-                unansweredCount: updatedAttempt.unansweredCount
-            },
+            result,
             "Test submitted and evaluated successfully"
         )
     );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle, BookOpen, FolderOpen } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
 // NOTE: Agar lucide-react nahi hai, toh wahi purane SVG icons niche paste kar dena (maine space bachane ke liye hataye hain)
@@ -9,12 +9,74 @@ import MyApplications from './MyApplications';
 import StudentProfile from './StudentProfile';
 import StudentAptitudeTests from './StudentAptitudeTests';
 import PlacementMaterials from './PlacementMaterials';
+import { getStudentProfile } from '../../services/api';
+import { evaluateStudentProfileCompletion } from '../../utils/studentProfileCompletion';
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("jobs"); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null); // Modal State
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [forceProfileCompletion, setForceProfileCompletion] = useState(false);
+  const [profileMissingFields, setProfileMissingFields] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const studentId = String(localStorage.getItem('studentId') || '').trim();
+    if (!studentId) {
+      navigate('/login');
+      return;
+    }
+
+    const validateProfile = async () => {
+      try {
+        setProfileLoading(true);
+        const response = await getStudentProfile(studentId);
+        const student = response?.data || {};
+        const completion = evaluateStudentProfileCompletion(student);
+
+        setForceProfileCompletion(!completion.isComplete);
+        setProfileMissingFields(completion.missingFields || []);
+
+        if (!completion.isComplete) {
+          setActiveTab('profile');
+        }
+      } catch (error) {
+        window.appAlert(error?.message || 'Session expired. Please login again.');
+        navigate('/login');
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    const handleProfileSync = (event) => {
+      const completion = event?.detail;
+      if (!completion || typeof completion.isComplete !== 'boolean') return;
+
+      setForceProfileCompletion(!completion.isComplete);
+      setProfileMissingFields(completion.missingFields || []);
+      if (!completion.isComplete) {
+        setActiveTab('profile');
+      }
+    };
+
+    validateProfile();
+    window.addEventListener('student-profile-completion-updated', handleProfileSync);
+
+    return () => {
+      window.removeEventListener('student-profile-completion-updated', handleProfileSync);
+    };
+  }, [navigate]);
+
+  const handleTabChange = (tab) => {
+    if (forceProfileCompletion && tab !== 'profile') {
+      const missing = profileMissingFields.length ? ` Missing: ${profileMissingFields.join(', ')}` : '';
+      window.appAlert(`Complete your profile first before using other sections.${missing}`);
+      setActiveTab('profile');
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   // --- MOCK DATA (Yahan rakhna best hai taaki props se pass kar sakein) ---
   const studentStats = { cgpa: 8.45, branch: "IT", backlogs: 0 };
@@ -36,11 +98,16 @@ export default function StudentDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('studentId');
     localStorage.removeItem('studentData');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('role');
-    localStorage.removeItem('userRole');
     navigate('/login');
   };
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600 font-medium">Checking profile completion...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
@@ -129,19 +196,19 @@ export default function StudentDashboard() {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/80">✕</button>
         </div>
         <nav className="flex-1 px-4 space-y-2">
-          <button onClick={() => setActiveTab("jobs")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "jobs" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("jobs")} disabled={forceProfileCompletion} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "jobs" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"} ${forceProfileCompletion ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Briefcase size={20}/> <span>Browse Jobs</span>
           </button>
-          <button onClick={() => setActiveTab("applications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "applications" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("applications")} disabled={forceProfileCompletion} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "applications" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"} ${forceProfileCompletion ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <FileText size={20}/> <span>My Applications</span>
           </button>
-          <button onClick={() => setActiveTab("tests")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("tests")} disabled={forceProfileCompletion} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"} ${forceProfileCompletion ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <BookOpen size={20}/> <span>Aptitude Tests</span>
           </button>
-          <button onClick={() => setActiveTab("materials")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "materials" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("materials")} disabled={forceProfileCompletion} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "materials" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"} ${forceProfileCompletion ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <FolderOpen size={20}/> <span>Placement Materials</span>
           </button>
-          <button onClick={() => setActiveTab("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <User size={20}/> <span>My Profile</span>
           </button>
         </nav>
@@ -165,6 +232,11 @@ export default function StudentDashboard() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          {forceProfileCompletion && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Complete all student profile data to unlock jobs, applications, tests, and materials.
+            </div>
+          )}
           
           {activeTab === 'jobs' && (
             <JobListings 

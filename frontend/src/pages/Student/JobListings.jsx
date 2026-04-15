@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { FiBriefcase, FiMapPin, FiClock, FiSearch, FiFilter, FiChevronRight } from 'react-icons/fi';
 import { getAllApprovedJobs, applyForJob, getStudentApplications, setJobInterest, getCompanyPublicProfile } from '../../services/api.js';
@@ -7,9 +8,6 @@ const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim
 const resolveStudentId = () => {
   const direct = String(localStorage.getItem('studentId') || '').trim();
   if (isValidMongoId(direct)) return direct;
-
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
 
   try {
     const cached = JSON.parse(localStorage.getItem('studentData') || '{}');

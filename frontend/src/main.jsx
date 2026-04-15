@@ -35,15 +35,12 @@ import ApproveJobs from './pages/Admin/ApproveJobs';
 import PlacementMaterialsAdmin from './pages/Admin/PlacementMaterialsAdmin';
 import StudentMasterAdmin from './pages/Admin/StudentMasterAdmin';
 
-// Error Page
-function ErrorPage() {
-  return (
-    <div style={{padding:40, fontFamily:'sans-serif'}}>
-      <h2 style={{color:'#c53030'}}>Page not found</h2>
-      <p>The page you requested doesn't exist. Go back to <a href="/">home</a>.</p>
-    </div>
-  )
-}
+const errorElement = (
+  <div style={{padding:40, fontFamily:'sans-serif'}}>
+    <h2 style={{color:'#c53030'}}>Page not found</h2>
+    <p>The page you requested doesn't exist. Go back to <a href="/">home</a>.</p>
+  </div>
+);
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -80,7 +77,7 @@ const router = createBrowserRouter(
           
       </Route>
         
-      <Route path='*' element={<ErrorPage/>} />
+      <Route path='*' element={errorElement} />
      </>
   )
 );

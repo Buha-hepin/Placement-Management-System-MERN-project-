@@ -10,9 +10,6 @@ const resolveCompanyId = () => {
   const direct = String(localStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
     const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
@@ -86,7 +83,13 @@ export default function CompanyDashboard() {
     }
   };
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = (updatedJob) => {
+    if (updatedJob?._id) {
+      setPostedJobs((currentJobs) =>
+        currentJobs.map((job) => (job._id === updatedJob._id ? updatedJob : job))
+      );
+    }
+
     fetchCompanyJobs();
   };
 
@@ -101,18 +104,6 @@ export default function CompanyDashboard() {
     if (!job?.applicationDeadline) return false;
     return new Date(job.applicationDeadline) < new Date();
   };
-
-  // Get recent applications (flatten all applicants from all jobs)
-  const recentApplications = postedJobs
-    .filter(job => job.applicants && job.applicants.length > 0)
-    .flatMap(job => 
-      job.applicants.map(applicant => ({
-        ...applicant,
-        jobTitle: job.jobTitle,
-        jobId: job._id
-      }))
-    )
-    .slice(0, 5); // Show only 5 most recent
 
   if (loading) {
     return (

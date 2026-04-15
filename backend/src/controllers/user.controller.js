@@ -10,6 +10,7 @@ import{ apiResponse } from "../utils/apiResponse.js";
 import { sendOTPEmail, sendPasswordResetEmail, sendNotificationEmail } from "../utils/emailSender.js";
 import { sendOTPSMS } from "../utils/smsSender.js";
 import { compareAcademicRecords, normalizeSemesterRecord } from "../utils/academicCompare.js";
+import { evaluateStudentProfileCompletion } from "../utils/studentProfileCompletion.js";
 import jwt from "jsonwebtoken";
 
 const ACADEMIC_MISMATCH_ALERT_THRESHOLD = 3;
@@ -479,8 +480,14 @@ export const loginUser = asyncHandler(async(req,res)=>{
 
         const accessToken = buildAccessToken({ id: user._id, role: "student", email: user.email });
         const userData = await User.findById(user._id).select("-password -refreshToken");
-        return res.status(200).cookie("accessToken", accessToken, accessCookieOptions).json(
-            new apiResponse(200,userData,"Student logged in successfully")
+        const completion = evaluateStudentProfileCompletion(userData?.toObject?.() || userData || {});
+        const responseData = {
+            ...(userData?.toObject?.() || {}),
+            isProfileComplete: completion.isComplete,
+            missingProfileFields: completion.missingFields
+        };
+        return res.status(200).cookie("student-token", accessToken, accessCookieOptions).json(
+            new apiResponse(200,responseData,"Student logged in successfully")
         )
     }
     if(requestedRole==="company"){
@@ -495,7 +502,7 @@ export const loginUser = asyncHandler(async(req,res)=>{
         }
         const accessToken = buildAccessToken({ id: company._id, role: "company", email: company.email });
         const companyData = await Company.findById(company._id).select("-password -refreshToken");
-        return res.status(200).cookie("accessToken", accessToken, accessCookieOptions).json(
+        return res.status(200).cookie("company-token", accessToken, accessCookieOptions).json(
             new apiResponse(200,companyData,"Company logged in successfully")
         )
     }
@@ -530,7 +537,7 @@ export const loginUser = asyncHandler(async(req,res)=>{
             role:"admin"    
         };
         const accessToken = buildAccessToken({ id: "admin", role: "admin", email: adminEmail });
-        return res.status(200).cookie("accessToken", accessToken, accessCookieOptions).json(
+        return res.status(200).cookie("admin-token", accessToken, accessCookieOptions).json(
             new apiResponse(200,adminData,"Admin logged in successfully")
         )
     }
@@ -542,7 +549,9 @@ export const loginUser = asyncHandler(async(req,res)=>{
 export const logoutUser = asyncHandler(async (_req, res) => {
     return res
         .status(200)
-        .clearCookie("accessToken", clearCookieOptions)
+        .clearCookie("student-token", clearCookieOptions)
+        .clearCookie("company-token", clearCookieOptions)
+        .clearCookie("admin-token", clearCookieOptions)
         .json(new apiResponse(200, null, "Logged out successfully"));
 });
 
@@ -559,8 +568,15 @@ export const getStudentProfile = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Student not found");
     }
 
+    const completion = evaluateStudentProfileCompletion(student.toObject());
+    const responseData = {
+        ...student.toObject(),
+        isProfileComplete: completion.isComplete,
+        missingProfileFields: completion.missingFields
+    };
+
     return res.status(200).json(
-        new apiResponse(200, student, "Student profile retrieved successfully")
+        new apiResponse(200, responseData, "Student profile retrieved successfully")
     );
 })
 
@@ -581,20 +597,29 @@ export const updateStudentProfile = asyncHandler(async(req,res)=>{
     const previousMismatchCount = Number(student?.academicVerification?.mismatchCount || 0);
     const previousHasMismatch = Boolean(student?.academicVerification?.hasMismatch);
 
-    // Update only provided fields
-    if (fullname) student.fullname = fullname;
-    if (email) student.email = email;
-    if (branch) student.branch = branch;
-    if (cgpa) student.cgpa = cgpa;
-    if (phone) student.phone = phone;
-    if (Array.isArray(semesterAcademicRecords)) {
-        const normalized = semesterAcademicRecords
+    const normalizedRecords = Array.isArray(semesterAcademicRecords)
+        ? semesterAcademicRecords
             .map(normalizeSemesterRecord)
             .filter((record) => record.semester >= 1 && record.semester <= 8)
-            .sort((a, b) => a.semester - b.semester);
+            .sort((a, b) => a.semester - b.semester)
+        : student.semesterAcademicRecords;
 
-        student.semesterAcademicRecords = normalized;
-    }
+    const draftForValidation = {
+        ...student.toObject(),
+        fullname: String(fullname ?? student.fullname ?? '').trim(),
+        email: String(email ?? student.email ?? '').trim().toLowerCase(),
+        branch: String(branch ?? student.branch ?? '').trim(),
+        phone: String(phone ?? student.phone ?? '').trim(),
+        cgpa: Number(cgpa ?? student.cgpa),
+        semesterAcademicRecords: normalizedRecords
+    };
+
+    student.fullname = draftForValidation.fullname;
+    student.email = draftForValidation.email;
+    student.branch = draftForValidation.branch;
+    student.cgpa = draftForValidation.cgpa;
+    student.phone = draftForValidation.phone;
+    student.semesterAcademicRecords = normalizedRecords;
 
     const verification = compareAcademicRecords(student.semesterAcademicRecords || [], student.adminAcademicRecords || []);
     student.academicVerification = {
@@ -620,9 +645,15 @@ export const updateStudentProfile = asyncHandler(async(req,res)=>{
 
     const updatedStudent = await student.save();
     const profileData = await User.findById(updatedStudent._id).select("-password -refreshToken");
+    const profileCompletion = evaluateStudentProfileCompletion(profileData?.toObject?.() || profileData || {});
+    const responseData = {
+        ...(profileData?.toObject?.() || {}),
+        isProfileComplete: profileCompletion.isComplete,
+        missingProfileFields: profileCompletion.missingFields
+    };
 
     return res.status(200).json(
-        new apiResponse(200, profileData, "Student profile updated successfully")
+        new apiResponse(200, responseData, "Student profile updated successfully")
     );
 })
 
@@ -635,7 +666,7 @@ export const updateStudentSkills = asyncHandler(async(req,res)=>{
         throw new apierror(400, "Student ID is required");
     }
 
-    if (!skills || !Array.isArray(skills)) {
+    if (!Array.isArray(skills)) {
         throw new apierror(400, "Skills must be an array");
     }
 
@@ -649,8 +680,15 @@ export const updateStudentSkills = asyncHandler(async(req,res)=>{
         throw new apierror(404, "Student not found");
     }
 
+    const completion = evaluateStudentProfileCompletion(student?.toObject?.() || student || {});
+    const responseData = {
+        ...(student?.toObject?.() || {}),
+        isProfileComplete: completion.isComplete,
+        missingProfileFields: completion.missingFields
+    };
+
     return res.status(200).json(
-        new apiResponse(200, student, "Student skills updated successfully")
+        new apiResponse(200, responseData, "Student skills updated successfully")
     );
 })
 
@@ -709,9 +747,15 @@ export const uploadResume = asyncHandler(async(req,res)=>{
     await student.save();
 
     const updatedStudent = await User.findById(studentId).select("-password -refreshToken");
+    const completion = evaluateStudentProfileCompletion(updatedStudent?.toObject?.() || updatedStudent || {});
+    const responseData = {
+        ...(updatedStudent?.toObject?.() || {}),
+        isProfileComplete: completion.isComplete,
+        missingProfileFields: completion.missingFields
+    };
 
     return res.status(200).json(
-        new apiResponse(200, updatedStudent, "Resume uploaded successfully")
+        new apiResponse(200, responseData, "Resume uploaded successfully")
     );
 })
 
