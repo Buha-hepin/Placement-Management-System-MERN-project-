@@ -34,6 +34,7 @@ import AllStudents from './pages/Admin/AllStudents';
 import ApproveJobs from './pages/Admin/ApproveJobs';
 import PlacementMaterialsAdmin from './pages/Admin/PlacementMaterialsAdmin';
 import StudentMasterAdmin from './pages/Admin/StudentMasterAdmin';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 
 // Error Page
 function ErrorPage() {
@@ -68,7 +69,7 @@ const router = createBrowserRouter(
           <Route path="applicants/:jobId?" element={<CompanyApplicants/>} />
       </Route>
       {/* --- ADMIN ROUTES --- */}
-      <Route path="/admin" element={<AdminLayout/>}>
+      <Route path="/admin" element={<AdminProtectedRoute><AdminLayout/></AdminProtectedRoute>}>
           <Route index element={<AdminDashboard/>} /> 
           
           <Route path="dashboard" element={<AdminDashboard/>} />

@@ -1,6 +1,7 @@
 // Admin routes: dashboard, users, jobs management
 import { Router } from 'express';
 import { upload } from '../middlewares/multer.middleware.js';
+import { requireAuth, requireAdmin } from '../middlewares/auth.middleware.js';
 import { apierror } from '../utils/apierror.js';
 import {
     getAdminDashboard,
@@ -24,6 +25,9 @@ import {
 } from '../controllers/admin.controller.js';
 
 const router = Router();
+
+// Every admin endpoint requires a valid logged-in admin session.
+router.use(requireAuth, requireAdmin);
 
 const masterCsvUpload = (req, res, next) => {
     upload.single('file')(req, res, (err) => {

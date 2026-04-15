@@ -627,7 +627,7 @@ export const getStudentAvailableTests = asyncHandler(async (req, res) => {
         throw new apierror(404, "Student not found");
     }
 
-    // Only job-linked tests are visible, and only when student is both interested and applied.
+    // Job-linked tests are visible only when student is both interested and applied.
     const applications = await Application.find({ studentId }).select('jobId').lean();
     const appliedJobIds = applications.map((app) => app.jobId).filter(Boolean);
 
@@ -635,7 +635,6 @@ export const getStudentAvailableTests = asyncHandler(async (req, res) => {
         _id: { $in: appliedJobIds },
         status: "approved",
         applicationDeadline: { $gte: new Date() },
-        aptitudeTestId: { $ne: null },
         interestedStudents: new mongoose.Types.ObjectId(studentId)
     }).select('_id minCGPA').lean();
 
@@ -649,13 +648,38 @@ export const getStudentAvailableTests = asyncHandler(async (req, res) => {
         })
         .map((job) => job._id);
 
-    const tests = await AptitudeTest.find({
+    const linkedTests = await AptitudeTest.find({
         isActive: true,
         jobId: { $in: eligibleJobIds }
     })
         .select('-answerKey')
         .populate('jobId', 'jobTitle')
         .lean();
+
+    // Include standalone/open tests (no job linked) for all students who are not blocked
+    // and satisfy test-level CGPA restriction.
+    const standaloneFilter = {
+        isActive: true,
+        $or: [
+            { jobId: null },
+            { jobId: { $exists: false } }
+        ]
+    };
+
+    const standaloneTests = student.isPlacementBlocked
+        ? []
+        : await AptitudeTest.find(standaloneFilter)
+            .select('-answerKey')
+            .lean();
+
+    const studentCgpa = Number(student.cgpa);
+    const eligibleStandaloneTests = standaloneTests.filter((test) => {
+        const requiredCgpa = Number(test?.restrictions?.minCGPA || 0);
+        if (requiredCgpa <= 0) return true;
+        return Number.isFinite(studentCgpa) && studentCgpa >= requiredCgpa;
+    });
+
+    const tests = [...linkedTests, ...eligibleStandaloneTests];
 
     // Fetch student's existing attempts to show attempt status
     const existingAttempts = await TestAttempt.find({ studentId })

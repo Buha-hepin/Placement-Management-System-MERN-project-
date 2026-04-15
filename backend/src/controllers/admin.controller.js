@@ -9,6 +9,7 @@ import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { compareAcademicRecords, normalizeSemesterRecord } from "../utils/academicCompare.js";
 import { cleanupCompanyDataByAdminDelete } from "../utils/dataCleanup.js";
+import { sendNotificationEmail } from "../utils/emailSender.js";
 
 // Admin Dashboard - Get statistics
 export const getAdminDashboard = asyncHandler(async (req, res) => {
@@ -560,6 +561,33 @@ export const approveJob = asyncHandler(async (req, res) => {
 
     if (!job) {
         throw new apierror(404, "Job not found");
+    }
+
+    // Notify verified users only after admin approval so unapproved jobs are not announced.
+    try {
+        const users = await User.find({ isEmailVerified: true }).select("email").lean();
+        const recipients = users
+            .map((u) => u.email)
+            .filter((email) => typeof email === "string" && email.trim().length > 0);
+
+        if (recipients.length > 0) {
+            const subject = `New Job Posted: ${job.jobTitle}`;
+            const text = `${job.companyName} posted a new job: ${job.jobTitle} (${job.location}).`;
+            const html = `
+                <div style="font-family: Arial, sans-serif; padding: 16px;">
+                    <h3 style="color: #1e40af;">New Job Opportunity</h3>
+                    <p><strong>${job.companyName}</strong> posted a new role: <strong>${job.jobTitle}</strong>.</p>
+                    <p>Location: ${job.location}</p>
+                    <p>This is an automated alert from Placement Management System.</p>
+                </div>
+            `;
+
+            await Promise.allSettled(
+                recipients.map((to) => sendNotificationEmail(to, subject, html, text))
+            );
+        }
+    } catch (err) {
+        console.error("Auto approved-job notification failed:", err.message);
     }
 
     return res.status(200).json(

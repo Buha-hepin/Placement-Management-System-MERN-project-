@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAuth, requireAdmin } from '../middlewares/auth.middleware.js';
 // Job routes: student browse/apply, company applicants, admin moderation
 import { 
     getAllApprovedJobs, 
@@ -24,9 +25,9 @@ const router = Router();
 router.route('/browse').get(getAllApprovedJobs);
 router.route('/student/:studentId/applications').get(getStudentApplications);
 router.route('/student/:studentId/applications/:applicationId').delete(withdrawApplication);
-router.route('/admin/pending').get(getPendingJobs);
-router.route('/admin/:jobId/approve').put(approveJob);
-router.route('/admin/:jobId/reject').put(rejectJob);
+router.route('/admin/pending').get(requireAuth, requireAdmin, getPendingJobs);
+router.route('/admin/:jobId/approve').put(requireAuth, requireAdmin, approveJob);
+router.route('/admin/:jobId/reject').put(requireAuth, requireAdmin, rejectJob);
 router.route('/create').post(createJob);
 router.route('/:jobId/analytics').get(getJobAnalytics);
 

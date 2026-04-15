@@ -678,42 +678,8 @@ export const createJob = asyncHandler(async(req,res)=>{
         status: "pending"
     });
 
-    // Notify verified students about new openings automatically.
-    let notificationSummary = null;
-    try {
-        const students = await User.find({ isEmailVerified: true }).select('email fullname').lean();
-        const recipients = students
-            .map((s) => s.email)
-            .filter((email) => typeof email === 'string' && email.trim().length > 0);
-
-        if (recipients.length > 0) {
-            const subject = `New Job Posted: ${job.jobTitle}`;
-            const text = `${job.companyName} posted a new job: ${job.jobTitle} (${job.location}).`;
-            const html = `
-                <div style="font-family: Arial, sans-serif; padding: 16px;">
-                    <h3 style="color: #1e40af;">New Job Opportunity</h3>
-                    <p><strong>${job.companyName}</strong> posted a new role: <strong>${job.jobTitle}</strong>.</p>
-                    <p>Location: ${job.location}</p>
-                    <p>This is an automated alert from Placement Management System.</p>
-                </div>
-            `;
-
-            const settled = await Promise.allSettled(
-                recipients.map((to) => sendNotificationEmail(to, subject, html, text))
-            );
-            const sent = settled.filter((r) => r.status === 'fulfilled').length;
-            const failed = settled.length - sent;
-            notificationSummary = { recipients: recipients.length, sent, failed };
-        } else {
-            notificationSummary = { recipients: 0, sent: 0, failed: 0 };
-        }
-    } catch (err) {
-        console.error('Auto new-job notification failed:', err.message);
-        notificationSummary = { error: err.message };
-    }
-
     return res.status(201).json(
-        new apiResponse(201, { job, notificationSummary }, "Job posted successfully")
+        new apiResponse(201, job, "Job posted successfully")
     );
 })
 
