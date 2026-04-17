@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Database, Search, Upload, Plus, Phone, Mail, ShieldCheck, Trash2 } from 'lucide-react';
+import { Database, Search, Upload, Plus, Phone, Mail, ShieldCheck, Trash2, RefreshCw } from 'lucide-react';
 import {
   bulkUploadStudentMaster,
   getStudentMasterRecords,
   uploadStudentMasterCsv,
-  deleteStudentMasterRecord
+  deleteStudentMasterRecord,
+  syncStudentMasterClaims
 } from '../../services/api.js';
 
 const emptyRow = { enrollmentNo: '', phone: '', email: '' };
@@ -12,6 +13,7 @@ const emptyRow = { enrollmentNo: '', phone: '', email: '' };
 export default function StudentMasterAdmin() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -202,6 +204,23 @@ export default function StudentMasterAdmin() {
     }
   };
 
+  const handleSyncClaims = async () => {
+    if (!(await window.appConfirm('Sync pending records with already registered students?'))) return;
+    try {
+      setSyncing(true);
+      const response = await syncStudentMasterClaims();
+      const data = response?.data || {};
+      window.appAlert(
+        `${response?.message || 'Sync completed'} | Updated: ${Number(data.updated || 0)} / Pending: ${Number(data.totalPending || 0)}`
+      );
+      await fetchRecords();
+    } catch (error) {
+      window.appAlert(error.message || 'Claim sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalCount / 20));
 
   return (
@@ -386,17 +405,28 @@ export default function StudentMasterAdmin() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-gray-800">Master Records ({totalCount})</h2>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search enrollment/phone/email"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <button className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 text-white">
-              <Search size={14} /> Search
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleSyncClaims}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing...' : 'Sync Existing Users'}
             </button>
-          </form>
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search enrollment/phone/email"
+                className="px-3 py-2 border border-gray-200 rounded-lg"
+              />
+              <button className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 text-white">
+                <Search size={14} /> Search
+              </button>
+            </form>
+          </div>
         </div>
 
         {loading ? (

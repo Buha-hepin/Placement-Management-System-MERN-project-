@@ -318,6 +318,75 @@ export const getStudentMasterRecords = asyncHandler(async (req, res) => {
     );
 });
 
+// Sync pending student master records with already registered users.
+// Useful for backfilling records created before claim tracking was introduced.
+export const syncStudentMasterClaims = asyncHandler(async (req, res) => {
+    const pendingRecords = await StudentMaster.find({ isActive: true, isClaimed: false })
+        .select("_id enrollmentNo");
+
+    if (!pendingRecords.length) {
+        return res.status(200).json(
+            new apiResponse(200, {
+                totalPending: 0,
+                matchedUsers: 0,
+                updated: 0
+            }, "No pending student master records to sync")
+        );
+    }
+
+    const enrollmentNos = pendingRecords
+        .map((record) => String(record.enrollmentNo || "").trim().toUpperCase())
+        .filter(Boolean);
+
+    const users = await User.find({ enrollmentNo: { $in: enrollmentNos } })
+        .select("_id enrollmentNo");
+
+    const userByEnrollment = new Map(
+        users.map((user) => [String(user.enrollmentNo || "").trim().toUpperCase(), user])
+    );
+
+    const now = new Date();
+    const updates = [];
+
+    for (const record of pendingRecords) {
+        const normalizedEnrollment = String(record.enrollmentNo || "").trim().toUpperCase();
+        const matchedUser = userByEnrollment.get(normalizedEnrollment);
+
+        if (!matchedUser) {
+            continue;
+        }
+
+        updates.push({
+            updateOne: {
+                filter: { _id: record._id },
+                update: {
+                    $set: {
+                        isClaimed: true,
+                        claimedBy: matchedUser._id,
+                        claimedAt: now
+                    }
+                }
+            }
+        });
+    }
+
+    if (updates.length) {
+        await StudentMaster.bulkWrite(updates);
+    }
+
+    return res.status(200).json(
+        new apiResponse(
+            200,
+            {
+                totalPending: pendingRecords.length,
+                matchedUsers: updates.length,
+                updated: updates.length
+            },
+            "Student master claims synced successfully"
+        )
+    );
+});
+
 // Delete a student master record by ID
 export const deleteStudentMasterRecord = asyncHandler(async (req, res) => {
     const { recordId } = req.params;

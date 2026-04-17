@@ -535,6 +535,15 @@ export async function deleteStudentMasterRecord(recordId) {
   return data;
 }
 
+export async function syncStudentMasterClaims() {
+  const url = `${BASE_URL}/api/v1/admin/students/master/sync-claims`;
+  const res = await fetch(url, { method: 'POST', credentials: 'include' });
+  let data;
+  try { data = await res.json(); } catch { if (!res.ok) throw new Error(res.statusText || 'Request failed'); return null; }
+  if (!res.ok) { throw new Error(data?.message || data?.error || res.statusText || 'Request failed'); }
+  return data;
+}
+
 export async function uploadStudentMasterCsv(formData) {
   const url = `${BASE_URL}/api/v1/admin/students/master/upload-csv`;
 

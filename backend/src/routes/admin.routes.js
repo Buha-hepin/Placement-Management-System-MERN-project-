@@ -8,6 +8,7 @@ import {
     bulkUploadStudentMaster,
     uploadStudentMasterCsv,
     getStudentMasterRecords,
+    syncStudentMasterClaims,
     getStudentAcademicDetails,
     updateStudentOfficialAcademics,
     getAcademicMismatchStudents,
@@ -38,6 +39,7 @@ router.route('/dashboard').get(getAdminDashboard);
 // Students management
 router.route('/students').get(getAllStudents);
 router.route('/students/master').get(getStudentMasterRecords);
+router.route('/students/master/sync-claims').post(syncStudentMasterClaims);
 router.route('/students/master/bulk').post(bulkUploadStudentMaster);
 router.route('/students/master/upload-csv').post(masterCsvUpload, uploadStudentMasterCsv);
 router.route('/students/master/:recordId').delete(deleteStudentMasterRecord);
