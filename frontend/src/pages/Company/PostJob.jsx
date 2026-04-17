@@ -5,14 +5,11 @@ import { createJob } from '../../services/api.js';
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveCompanyId = () => {
-  const direct = String(localStorage.getItem('companyId') || '').trim();
+  const direct = String(sessionStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
-    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cached = JSON.parse(sessionStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -37,16 +34,16 @@ export default function PostJob() {
     try {
       setLoading(true);
       
-      // Get company ID from localStorage
+      // Get company ID from sessionStorage
       const companyId = resolveCompanyId();
-      const companyData = JSON.parse(localStorage.getItem('companyData') || '{}');
+      const companyData = JSON.parse(sessionStorage.getItem('companyData') || '{}');
       
       if (!companyId) {
         window.appAlert('Please login as company first!');
         return;
       }
 
-      localStorage.setItem('companyId', companyId);
+      sessionStorage.setItem('companyId', companyId);
 
       // Prepare job data matching backend expectations
       const jobData = {

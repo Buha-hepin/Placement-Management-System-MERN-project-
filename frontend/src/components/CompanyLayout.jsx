@@ -7,11 +7,11 @@ export default function CompanyLayout() {
   const location = useLocation(); // Pata lagane ke liye ki abhi konsa page khula hai
 
   const handaleLogOut = () => {
-    localStorage.removeItem('role');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('companyId');
-    localStorage.removeItem('companyData');
+    sessionStorage.removeItem('role');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('companyId');
+    sessionStorage.removeItem('companyData');
     window.location.href = '/';
   }
 

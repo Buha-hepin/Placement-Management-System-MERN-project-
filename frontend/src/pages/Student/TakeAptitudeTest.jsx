@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiClock, FiChevronLeft, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
-import { startTest, saveAnswer, submitTest, getTestResults } from '../../services/api';
+import { startTest, saveAnswer, submitTest, getTestResults, getStudentProfile } from '../../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -11,11 +11,41 @@ const resolveQuestionAssetUrl = (url) => {
   return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
 };
 
+const isPositiveNumber = (value) => Number(value) > 0;
+
+const isStudentProfileComplete = (student = {}) => {
+  const fullname = String(student?.fullname || '').trim();
+  const email = String(student?.email || '').trim();
+  const branch = String(student?.branch || '').trim();
+  const phone = String(student?.phone || '').trim();
+  const resumeUrl = String(student?.resumeUrl || '').trim();
+  const cgpa = Number(student?.cgpa || 0);
+  const skills = Array.isArray(student?.skills) ? student.skills.filter(Boolean) : [];
+  const semesters = Array.isArray(student?.semesterAcademicRecords) ? student.semesterAcademicRecords : [];
+
+  const semesterMap = new Map(semesters.map((record) => [Number(record?.semester || 0), record]));
+  const hasAllSemesters = [1, 2, 3, 4, 5, 6].every((sem) => {
+    const record = semesterMap.get(sem);
+    return record && isPositiveNumber(record.spi) && isPositiveNumber(record.cpi);
+  });
+
+  return Boolean(
+    fullname &&
+    email &&
+    branch &&
+    phone &&
+    resumeUrl &&
+    cgpa > 0 &&
+    skills.length > 0 &&
+    hasAllSemesters
+  );
+};
+
 export default function TakeAptitudeTest() {
   const { testId } = useParams();
   const navigate = useNavigate();
 
-  const studentId = localStorage.getItem('studentId');
+  const studentId = sessionStorage.getItem('studentId');
   const [test, setTest] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -40,6 +70,14 @@ export default function TakeAptitudeTest() {
     const initializeTest = async () => {
       try {
         setLoading(true);
+
+        const profile = await getStudentProfile(studentId);
+        if (!isStudentProfileComplete(profile?.data || {})) {
+          window.appAlert('Complete your full profile first. Aptitude tests are locked until profile completion.');
+          navigate('/student');
+          return;
+        }
+
         const result = await startTest(testId, studentId);
 
         if (result && result.data) {

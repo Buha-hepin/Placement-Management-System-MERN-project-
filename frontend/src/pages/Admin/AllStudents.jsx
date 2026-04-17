@@ -9,8 +9,10 @@ import {
   bulkUploadOfficialAcademics,
 } from '../../services/api.js';
 
+const MAX_ACADEMIC_SEMESTER = 6;
+
 const buildDefaultSemesters = () => (
-  Array.from({ length: 8 }, (_, index) => ({
+  Array.from({ length: MAX_ACADEMIC_SEMESTER }, (_, index) => ({
     semester: index + 1,
     spi: '',
     cpi: '',
@@ -317,7 +319,7 @@ export default function AllStudents() {
                     <td className="p-4">
                       {student?.academicVerification?.hasMismatch ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
-                          <AlertTriangle size={12} /> {student?.academicVerification?.mismatchCount || 0} mismatch
+                          <AlertTriangle size={12} /> {student?.academicVerification?.mismatchCount || 0} semester{(student?.academicVerification?.mismatchCount || 0) === 1 ? '' : 's'} mismatch
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">

@@ -5,14 +5,11 @@ import { createAptitudeTest, getCompanyJobs } from '../../services/api';
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveCompanyId = () => {
-  const direct = String(localStorage.getItem('companyId') || '').trim();
+  const direct = String(sessionStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
-    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cached = JSON.parse(sessionStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -54,7 +51,7 @@ export default function CreateAptitudeTest() {
       if (!companyId) return;
       try {
         setJobsLoading(true);
-        localStorage.setItem('companyId', companyId);
+        sessionStorage.setItem('companyId', companyId);
         const res = await getCompanyJobs(companyId);
         setJobs(Array.isArray(res?.data) ? res.data : []);
       } catch (error) {
@@ -138,7 +135,7 @@ export default function CreateAptitudeTest() {
         return;
       }
 
-      localStorage.setItem('companyId', companyId);
+      sessionStorage.setItem('companyId', companyId);
       
       // Create FormData for file upload
       const formData = new FormData();

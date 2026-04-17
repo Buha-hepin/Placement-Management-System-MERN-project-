@@ -39,69 +39,58 @@ export const normalizeSemesterRecord = (record = {}) => {
 
 export const compareAcademicRecords = (studentRecords = [], adminRecords = []) => {
     const normalizedStudent = Array.isArray(studentRecords)
-        ? studentRecords.map(normalizeSemesterRecord).filter((r) => r.semester >= 1 && r.semester <= 8)
+        ? studentRecords.map(normalizeSemesterRecord).filter((r) => r.semester >= 1 && r.semester <= 6)
         : [];
     const normalizedAdmin = Array.isArray(adminRecords)
-        ? adminRecords.map(normalizeSemesterRecord).filter((r) => r.semester >= 1 && r.semester <= 8)
+        ? adminRecords.map(normalizeSemesterRecord).filter((r) => r.semester >= 1 && r.semester <= 6)
         : [];
 
-    // If official/admin data does not exist yet, do not mark student data as mismatch.
-    if (normalizedAdmin.length === 0) {
-        return {
-            hasMismatch: false,
-            mismatchCount: 0,
-            mismatchSemesters: [],
-            mismatchDetails: [],
-            comparedAt: new Date()
-        };
-    }
-
     const adminMap = new Map(normalizedAdmin.map((record) => [record.semester, record]));
+    const studentMap = new Map(normalizedStudent.map((record) => [record.semester, record]));
     const mismatches = [];
 
-    for (const student of normalizedStudent) {
-        const admin = adminMap.get(student.semester);
-        if (!admin) {
-            // Skip missing semester mismatch if student semester row is effectively empty.
-            if (!isEmptyAcademicRecord(student)) {
-                mismatches.push({
-                    semester: student.semester,
-                    field: "semester",
-                    studentValue: student.semester,
-                    adminValue: null,
-                    reason: `Official admin record missing for semester ${student.semester}.`
-                });
-            }
+    for (let semester = 1; semester <= 6; semester += 1) {
+        const student = studentMap.get(semester) || null;
+        const admin = adminMap.get(semester) || null;
+
+        if (!student || !admin || isEmptyAcademicRecord(student) || isEmptyAcademicRecord(admin)) {
+            mismatches.push({
+                semester,
+                field: "semester",
+                studentValue: student ? student.semester : null,
+                adminValue: admin ? admin.semester : null,
+                reason: `Academic record incomplete for semester ${semester}.`
+            });
             continue;
         }
 
         if (!valuesAreEqual(student.spi, admin.spi)) {
             mismatches.push({
-                semester: student.semester,
+                semester,
                 field: "spi",
                 studentValue: student.spi,
                 adminValue: admin.spi,
-                reason: `SPI mismatch in semester ${student.semester}.`
+                reason: `SPI mismatch in semester ${semester}.`
             });
         }
 
         if (!valuesAreEqual(student.cpi, admin.cpi)) {
             mismatches.push({
-                semester: student.semester,
+                semester,
                 field: "cpi",
                 studentValue: student.cpi,
                 adminValue: admin.cpi,
-                reason: `CPI mismatch in semester ${student.semester}.`
+                reason: `CPI mismatch in semester ${semester}.`
             });
         }
 
         if (student.backlogCount !== admin.backlogCount) {
             mismatches.push({
-                semester: student.semester,
+                semester,
                 field: "backlogCount",
                 studentValue: student.backlogCount,
                 adminValue: admin.backlogCount,
-                reason: `Backlog count mismatch in semester ${student.semester}.`
+                reason: `Backlog count mismatch in semester ${semester}.`
             });
         }
 
@@ -109,24 +98,11 @@ export const compareAcademicRecords = (studentRecords = [], adminRecords = []) =
         const adminSubjectsKey = admin.backlogSubjects.join("|");
         if (studentSubjectsKey !== adminSubjectsKey) {
             mismatches.push({
-                semester: student.semester,
+                semester,
                 field: "backlogSubjects",
                 studentValue: student.backlogSubjects,
                 adminValue: admin.backlogSubjects,
-                reason: `Backlog subjects mismatch in semester ${student.semester}.`
-            });
-        }
-    }
-
-    const studentSemesters = new Set(normalizedStudent.map((r) => r.semester));
-    for (const admin of normalizedAdmin) {
-        if (!studentSemesters.has(admin.semester) && !isEmptyAcademicRecord(admin)) {
-            mismatches.push({
-                semester: admin.semester,
-                field: "semester",
-                studentValue: null,
-                adminValue: admin.semester,
-                reason: `Student record missing for semester ${admin.semester}.`
+                reason: `Backlog subjects mismatch in semester ${semester}.`
             });
         }
     }
@@ -135,7 +111,7 @@ export const compareAcademicRecords = (studentRecords = [], adminRecords = []) =
 
     return {
         hasMismatch: mismatches.length > 0,
-        mismatchCount: mismatches.length,
+        mismatchCount: mismatchSemesters.length,
         mismatchSemesters,
         mismatchDetails: mismatches,
         comparedAt: new Date()

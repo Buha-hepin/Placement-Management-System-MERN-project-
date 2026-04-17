@@ -129,8 +129,8 @@ export async function loginUser(payload) {
   });
 
   
-  // Store user role in localStorage id store by the login.jsx(51)
-  localStorage.setItem('userRole', payload.role);
+  // Store user role in sessionStorage so each tab keeps its own auth state.
+  sessionStorage.setItem('userRole', payload.role);
   
  
   let data;

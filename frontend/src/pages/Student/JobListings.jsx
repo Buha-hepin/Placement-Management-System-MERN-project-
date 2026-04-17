@@ -5,14 +5,14 @@ import { getAllApprovedJobs, applyForJob, getStudentApplications, setJobInterest
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveStudentId = () => {
-  const direct = String(localStorage.getItem('studentId') || '').trim();
+  const direct = String(sessionStorage.getItem('studentId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
+  const fallbackUserId = String(sessionStorage.getItem('userId') || '').trim();
   if (isValidMongoId(fallbackUserId)) return fallbackUserId;
 
   try {
-    const cached = JSON.parse(localStorage.getItem('studentData') || '{}');
+    const cached = JSON.parse(sessionStorage.getItem('studentData') || '{}');
     const cachedId = String(cached?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -44,7 +44,7 @@ export default function JobListings() {
 
   useEffect(() => {
     if (studentId) {
-      localStorage.setItem('studentId', studentId);
+      sessionStorage.setItem('studentId', studentId);
     }
 
     fetchJobs();

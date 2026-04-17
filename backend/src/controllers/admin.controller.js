@@ -231,7 +231,7 @@ export const updateStudentOfficialAcademics = asyncHandler(async (req, res) => {
 
     const normalizedAdmin = adminAcademicRecords
         .map(normalizeSemesterRecord)
-        .filter((record) => record.semester >= 1 && record.semester <= 8)
+        .filter((record) => record.semester >= 1 && record.semester <= 6)
         .sort((a, b) => a.semester - b.semester);
 
     student.adminAcademicRecords = normalizedAdmin;
@@ -372,7 +372,7 @@ export const bulkUploadOfficialAcademics = asyncHandler(async (req, res) => {
 
         const normalizedAdmin = semesters
             .map(normalizeSemesterRecord)
-            .filter((record) => record.semester >= 1 && record.semester <= 8)
+            .filter((record) => record.semester >= 1 && record.semester <= 6)
             .sort((a, b) => a.semester - b.semester);
 
         student.adminAcademicRecords = normalizedAdmin;
@@ -501,7 +501,6 @@ export const deleteCompany = asyncHandler(async (req, res) => {
         new apiResponse(200, cleanupResult, "Company and associated data deleted successfully")
     );
 });
-
 
 // Get all jobs (with filtering)
 export const getAllJobs = asyncHandler(async (req, res) => {

@@ -13,7 +13,7 @@ const filePath =
 const normalizeSemesters = (semesters = []) => {
   return semesters
     .map((record) => normalizeSemesterRecord(record))
-    .filter((record) => record.semester >= 1 && record.semester <= 8)
+    .filter((record) => record.semester >= 1 && record.semester <= 6)
     .sort((a, b) => a.semester - b.semester);
 };
 
@@ -69,9 +69,9 @@ const main = async () => {
       lastComparedAt: verification.comparedAt
     };
 
-    const sem8 = normalized.find((r) => r.semester === 8);
-    if (sem8 && Number.isFinite(sem8.cpi)) {
-      student.cgpa = sem8.cpi;
+    const sem6 = normalized.find((r) => r.semester === 6);
+    if (sem6 && Number.isFinite(sem6.cpi)) {
+      student.cgpa = sem6.cpi;
     }
 
     await student.save();

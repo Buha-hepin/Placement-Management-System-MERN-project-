@@ -51,6 +51,8 @@ const generateOTP = () => {
 
 const normalizeEnrollmentNo = (value) => String(value || "").trim().toUpperCase();
 
+const escapeRegex = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const validateEnrollmentFormat = (enrollmentNo) => {
     const enrollmentRegex = /^\d{2}BE[A-Z]{2}\d{5}$/;
     return enrollmentRegex.test(enrollmentNo);
@@ -464,11 +466,22 @@ export const loginUser = asyncHandler(async(req,res)=>{
 
     if(requestedRole==="student"){
         const {enrollmentNo,password} = req.body;
-        if ([enrollmentNo, password].some((field) => field?.trim() === "")) {
+        const normalizedEnrollment = normalizeEnrollmentNo(enrollmentNo);
+
+        if (!normalizedEnrollment || [password].some((field) => field?.trim() === "")) {
             throw new apierror(400, "All fields are required");
         }   
 
-        const user = await User.findOne({enrollmentNo: enrollmentNo.trim().toUpperCase()});
+        let user = await User.findOne({ enrollmentNo: normalizedEnrollment });
+        if (!user) {
+            user = await User.findOne({
+                enrollmentNo: {
+                    $regex: `^${escapeRegex(normalizedEnrollment)}$`,
+                    $options: "i"
+                }
+            });
+        }
+
         if(!user || !(await user.comparePassword(password))){
             throw new apierror(401,"Invalid enrollment number or password");
         }
@@ -590,7 +603,7 @@ export const updateStudentProfile = asyncHandler(async(req,res)=>{
     if (Array.isArray(semesterAcademicRecords)) {
         const normalized = semesterAcademicRecords
             .map(normalizeSemesterRecord)
-            .filter((record) => record.semester >= 1 && record.semester <= 8)
+            .filter((record) => record.semester >= 1 && record.semester <= 6)
             .sort((a, b) => a.semester - b.semester);
 
         student.semesterAcademicRecords = normalized;

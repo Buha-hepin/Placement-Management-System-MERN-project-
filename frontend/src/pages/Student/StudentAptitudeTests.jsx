@@ -8,7 +8,7 @@ export default function StudentAptitudeTests() {
   const [loading, setLoading] = useState(true);
   const [tests, setTests] = useState([]);
   const [error, setError] = useState('');
-  const studentId = localStorage.getItem('studentId');
+  const studentId = sessionStorage.getItem('studentId');
 
   useEffect(() => {
     if (!studentId) {

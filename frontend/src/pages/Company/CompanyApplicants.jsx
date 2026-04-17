@@ -6,14 +6,11 @@ import { getJobApplicants, getCompanyJobs, updateApplicantStatus, updateApplican
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveCompanyId = () => {
-  const direct = String(localStorage.getItem('companyId') || '').trim();
+  const direct = String(sessionStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
-    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cached = JSON.parse(sessionStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -73,7 +70,7 @@ export default function CompanyApplicants() {
       const companyId = resolveCompanyId();
       if (!companyId) return;
 
-      localStorage.setItem('companyId', companyId);
+      sessionStorage.setItem('companyId', companyId);
       
       const response = await getCompanyJobs(companyId);
       setCompanyJobs(response.data || []);

@@ -10,7 +10,7 @@ export default function MyApplications() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [withdrawingId, setWithdrawingId] = useState(null);
 
-  const studentId = localStorage.getItem('studentId') || localStorage.getItem('userId');
+  const studentId = sessionStorage.getItem('studentId') || sessionStorage.getItem('userId');
 
   useEffect(() => {
     if (studentId) {

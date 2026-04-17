@@ -5,7 +5,7 @@ import { loginUser } from '../services/api.js';
 
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
-// Login: role-based (student/company/admin); stores IDs in localStorage
+// Login: role-based (student/company/admin); stores IDs in sessionStorage so each tab can keep its own session.
 function Login() {
   const [role, setRole] = useState("student");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +35,13 @@ function Login() {
 
     try {
       // Clear stale local ids/session markers before a new login attempt.
-      localStorage.removeItem('studentId');
-      localStorage.removeItem('studentData');
-      localStorage.removeItem('companyId');
-      localStorage.removeItem('companyData');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('role');
-      localStorage.removeItem('userRole');
+      sessionStorage.removeItem('studentId');
+      sessionStorage.removeItem('studentData');
+      sessionStorage.removeItem('companyId');
+      sessionStorage.removeItem('companyData');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('role');
+      sessionStorage.removeItem('userRole');
 
       // Handle student/company/admin login via API so auth cookie is set.
       let dataToSend = { role };
@@ -61,17 +61,17 @@ function Login() {
         throw new Error('Invalid login response. Please try again.');
       }
 
-      localStorage.setItem('userId', role === 'admin' ? 'admin' : resolvedId);
-      localStorage.setItem('role', role);
-      localStorage.setItem('userRole', role);
+      sessionStorage.setItem('userId', role === 'admin' ? 'admin' : resolvedId);
+      sessionStorage.setItem('role', role);
+      sessionStorage.setItem('userRole', role);
 
-      // Store user data in localStorage
+      // Store user data in sessionStorage
       if (role === 'student' && isValidMongoId(response.data?._id)) {
-        localStorage.setItem('studentId', response.data._id);
-        localStorage.setItem('studentData', JSON.stringify(response.data));
+        sessionStorage.setItem('studentId', response.data._id);
+        sessionStorage.setItem('studentData', JSON.stringify(response.data));
       } else if (role === 'company' && isValidMongoId(response.data?._id)) {
-        localStorage.setItem('companyId', response.data._id);
-        localStorage.setItem('companyData', JSON.stringify(response.data));
+        sessionStorage.setItem('companyId', response.data._id);
+        sessionStorage.setItem('companyData', JSON.stringify(response.data));
       }
 
       // Navigate based on role

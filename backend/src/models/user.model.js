@@ -9,7 +9,7 @@ const semesterAcademicSchema = new Schema({
         type: Number,
         required: true,
         min: 1,
-        max: 8
+        max: 6
     },
     spi: {
         type: Number,
@@ -61,7 +61,8 @@ const userSchema = new Schema({
         required: [true, "Enrollment number is required"],
         unique: true,
         index: true,
-        trim: true
+        trim: true,
+        uppercase: true
     },
 
     branch:{

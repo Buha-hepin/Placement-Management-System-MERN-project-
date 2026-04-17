@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MenuIcon, XIcon, Briefcase, User, FileText, LogOut, MapPin, CheckCircle, BookOpen, FolderOpen } from 'lucide-react'; // Ya fir apne icons wali file import kar lena
 // NOTE: Agar lucide-react nahi hai, toh wahi purane SVG icons niche paste kar dena (maine space bachane ke liye hataye hain)
@@ -9,11 +9,64 @@ import MyApplications from './MyApplications';
 import StudentProfile from './StudentProfile';
 import StudentAptitudeTests from './StudentAptitudeTests';
 import PlacementMaterials from './PlacementMaterials';
+import { getStudentProfile } from '../../services/api.js';
+
+const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
+
+const resolveStudentId = () => {
+  const direct = String(sessionStorage.getItem('studentId') || '').trim();
+  if (isValidMongoId(direct)) return direct;
+
+  const fallbackUserId = String(sessionStorage.getItem('userId') || '').trim();
+  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
+
+  try {
+    const cached = JSON.parse(sessionStorage.getItem('studentData') || '{}');
+    const cachedId = String(cached?._id || '').trim();
+    if (isValidMongoId(cachedId)) return cachedId;
+  } catch {
+    // Ignore malformed cached JSON.
+  }
+
+  return '';
+};
+
+const isPositiveNumber = (value) => Number(value) > 0;
+
+const isStudentProfileComplete = (student = {}) => {
+  const fullname = String(student?.fullname || '').trim();
+  const email = String(student?.email || '').trim();
+  const branch = String(student?.branch || '').trim();
+  const phone = String(student?.phone || '').trim();
+  const resumeUrl = String(student?.resumeUrl || '').trim();
+  const cgpa = Number(student?.cgpa || 0);
+  const skills = Array.isArray(student?.skills) ? student.skills.filter(Boolean) : [];
+  const semesters = Array.isArray(student?.semesterAcademicRecords) ? student.semesterAcademicRecords : [];
+
+  const semesterMap = new Map(semesters.map((record) => [Number(record?.semester || 0), record]));
+  const hasAllSemesters = [1, 2, 3, 4, 5, 6].every((sem) => {
+    const record = semesterMap.get(sem);
+    return record && isPositiveNumber(record.spi) && isPositiveNumber(record.cpi);
+  });
+
+  return Boolean(
+    fullname &&
+    email &&
+    branch &&
+    phone &&
+    resumeUrl &&
+    cgpa > 0 &&
+    skills.length > 0 &&
+    hasAllSemesters
+  );
+};
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("jobs"); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null); // Modal State
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const navigate = useNavigate();
 
   // --- MOCK DATA (Yahan rakhna best hai taaki props se pass kar sakein) ---
@@ -33,14 +86,76 @@ export default function StudentDashboard() {
     // Aur jobs add kar sakta hai
   ];
 
+  useEffect(() => {
+    const verifyStudentProfile = async (prefetchedStudent = null) => {
+      const studentId = resolveStudentId();
+      if (!studentId) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        setCheckingProfile(true);
+        const student = prefetchedStudent || (await getStudentProfile(studentId))?.data || {};
+        setStudentProfile(student || null);
+        sessionStorage.setItem('studentId', studentId);
+        sessionStorage.setItem('studentData', JSON.stringify(student));
+
+        if (!isStudentProfileComplete(student)) {
+          setActiveTab('profile');
+          window.appAlert('Please complete your full profile first. Other sections are locked until profile completion.');
+        }
+      } catch (error) {
+        console.error('Failed to verify student profile:', error);
+        navigate('/login');
+      } finally {
+        setCheckingProfile(false);
+      }
+    };
+
+    verifyStudentProfile();
+
+    const handleStudentProfileSynced = (event) => {
+      verifyStudentProfile(event?.detail || null);
+    };
+
+    window.addEventListener('student-profile-synced', handleStudentProfileSynced);
+
+    return () => {
+      window.removeEventListener('student-profile-synced', handleStudentProfileSynced);
+    };
+  }, [navigate]);
+
+  const handleTabChange = (tab) => {
+    const profileLocked = !isStudentProfileComplete(studentProfile || {});
+    if (profileLocked && tab !== 'profile') {
+      setActiveTab('profile');
+      window.appAlert('Complete profile first to access jobs, applications, tests, and materials.');
+      return;
+    }
+
+    setActiveTab(tab);
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('studentId');
-    localStorage.removeItem('studentData');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('role');
-    localStorage.removeItem('userRole');
+    sessionStorage.removeItem('studentId');
+    sessionStorage.removeItem('studentData');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('role');
+    sessionStorage.removeItem('userRole');
     navigate('/login');
   };
+
+  if (checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600">Checking your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative">
@@ -129,19 +244,19 @@ export default function StudentDashboard() {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/80">✕</button>
         </div>
         <nav className="flex-1 px-4 space-y-2">
-          <button onClick={() => setActiveTab("jobs")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "jobs" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("jobs")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "jobs" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <Briefcase size={20}/> <span>Browse Jobs</span>
           </button>
-          <button onClick={() => setActiveTab("applications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "applications" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("applications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "applications" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <FileText size={20}/> <span>My Applications</span>
           </button>
-          <button onClick={() => setActiveTab("tests")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("tests")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "tests" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <BookOpen size={20}/> <span>Aptitude Tests</span>
           </button>
-          <button onClick={() => setActiveTab("materials")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "materials" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("materials")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "materials" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <FolderOpen size={20}/> <span>Placement Materials</span>
           </button>
-          <button onClick={() => setActiveTab("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
+          <button onClick={() => handleTabChange("profile")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === "profile" ? "bg-white/20 shadow-lg" : "hover:bg-white/10"}`}>
             <User size={20}/> <span>My Profile</span>
           </button>
         </nav>
@@ -153,6 +268,10 @@ export default function StudentDashboard() {
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center z-10">
+           {(() => {
+             const profileLocked = !isStudentProfileComplete(studentProfile || {});
+             return profileLocked ? null : null;
+           })()}
            <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-gray-600"><MenuIcon /></button>
            <h1 className="text-xl font-bold text-gray-800">
              {activeTab === 'jobs' && 'Latest Opportunities'}
@@ -161,6 +280,11 @@ export default function StudentDashboard() {
              {activeTab === 'materials' && 'Placement Materials'}
              {activeTab === 'profile' && 'My Profile'}
            </h1>
+           {!isStudentProfileComplete(studentProfile || {}) && (
+             <span className="hidden md:inline-flex text-xs px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold">
+               Profile Incomplete: Complete My Profile to unlock all sections
+             </span>
+           )}
            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">R</div>
         </header>
 

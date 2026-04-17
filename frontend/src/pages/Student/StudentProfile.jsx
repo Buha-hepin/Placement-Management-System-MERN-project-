@@ -3,8 +3,10 @@ import { Edit2, FileText, Upload, Download, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getStudentProfile, updateStudentProfile, updateStudentSkills, uploadResume } from '../../services/api.js';
 
+const MAX_VISIBLE_SEMESTER = 6;
+
 const buildDefaultSemesters = () => (
-  Array.from({ length: 8 }, (_, index) => ({
+  Array.from({ length: MAX_VISIBLE_SEMESTER }, (_, index) => ({
     semester: index + 1,
     spi: '',
     cpi: '',
@@ -34,11 +36,11 @@ const mergeSemesterRecords = (records = []) => {
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveStoredStudentId = () => {
-  const direct = String(localStorage.getItem('studentId') || localStorage.getItem('userId') || '').trim();
+  const direct = String(sessionStorage.getItem('studentId') || sessionStorage.getItem('userId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
   try {
-    const cachedStudent = JSON.parse(localStorage.getItem('studentData') || '{}');
+    const cachedStudent = JSON.parse(sessionStorage.getItem('studentData') || '{}');
     const cachedId = String(cachedStudent?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -46,6 +48,14 @@ const resolveStoredStudentId = () => {
   }
 
   return '';
+};
+
+const broadcastStudentProfileSync = (student) => {
+  window.dispatchEvent(
+    new CustomEvent('student-profile-synced', {
+      detail: student || null
+    })
+  );
 };
 
 const StudentProfile = () => {
@@ -82,9 +92,9 @@ const StudentProfile = () => {
     if (studentId) {
       fetchStudentProfile();
     } else {
-      localStorage.removeItem('studentId');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('studentData');
+      sessionStorage.removeItem('studentId');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('studentData');
       setLoading(false);
       setProfileError('Student session is invalid. Please login again.');
     }
@@ -104,8 +114,8 @@ const StudentProfile = () => {
       if (response?.data) {
         const data = response.data;
         if (data?._id) {
-          localStorage.setItem('studentId', data._id);
-          localStorage.setItem('userId', data._id);
+          sessionStorage.setItem('studentId', data._id);
+          sessionStorage.setItem('userId', data._id);
         }
         setProfileData(data);
         setFormData({
@@ -117,6 +127,7 @@ const StudentProfile = () => {
           skills: data.skills || [],
           semesterAcademicRecords: mergeSemesterRecords(data.semesterAcademicRecords || [])
         });
+        broadcastStudentProfileSync(data);
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error);
@@ -124,9 +135,9 @@ const StudentProfile = () => {
       setProfileError(message);
 
       if (String(message).toLowerCase().includes('student not found')) {
-        localStorage.removeItem('studentId');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('studentData');
+        sessionStorage.removeItem('studentId');
+        sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('studentData');
       }
     } finally {
       setLoading(false);
@@ -245,10 +256,10 @@ const StudentProfile = () => {
       semesterAcademicRecords: official,
     }));
 
-    // If present, use last semester CPI as current CGPA suggestion.
-    const sem8 = official.find((record) => Number(record.semester) === 8);
-    if (sem8 && sem8.cpi !== '' && sem8.cpi !== undefined && sem8.cpi !== null) {
-      setFormData((prev) => ({ ...prev, cgpa: sem8.cpi }));
+    // If present, use latest available semester CPI as current CGPA suggestion.
+    const latestVisibleSemester = official.find((record) => Number(record.semester) === MAX_VISIBLE_SEMESTER);
+    if (latestVisibleSemester && latestVisibleSemester.cpi !== '' && latestVisibleSemester.cpi !== undefined && latestVisibleSemester.cpi !== null) {
+      setFormData((prev) => ({ ...prev, cgpa: latestVisibleSemester.cpi }));
     }
   };
 
@@ -280,9 +291,9 @@ const StudentProfile = () => {
         semesterAcademicRecords: merged
       }));
 
-      const sem8 = merged.find((record) => Number(record.semester) === 8);
-      if (sem8 && sem8.cpi !== '' && sem8.cpi !== undefined && sem8.cpi !== null) {
-        setFormData((prev) => ({ ...prev, cgpa: sem8.cpi }));
+      const latestVisibleSemester = merged.find((record) => Number(record.semester) === MAX_VISIBLE_SEMESTER);
+      if (latestVisibleSemester && latestVisibleSemester.cpi !== '' && latestVisibleSemester.cpi !== undefined && latestVisibleSemester.cpi !== null) {
+        setFormData((prev) => ({ ...prev, cgpa: latestVisibleSemester.cpi }));
       }
 
       window.appAlert('Official JSON data imported into semester records. Click Save to persist.');
@@ -463,7 +474,7 @@ const StudentProfile = () => {
 
           <div className="mb-8">
             <div className="flex items-center justify-between mb-3 border-b pb-2">
-              <h3 className="font-bold text-gray-900">Semester Academic Records (Sem 1 to 8)</h3>
+              <h3 className="font-bold text-gray-900">Semester Academic Records (Sem 1 to 6)</h3>
               <div className="flex items-center gap-2">
                 {isEditing && (profileData?.adminAcademicRecords || []).length > 0 && (
                   <button
@@ -494,7 +505,7 @@ const StudentProfile = () => {
                 )}
                 {profileData.academicVerification?.hasMismatch ? (
                   <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-700">
-                    Mismatch Found ({profileData.academicVerification?.mismatchCount || 0})
+                    Mismatch Found in {profileData.academicVerification?.mismatchCount || 0} semester{(profileData.academicVerification?.mismatchCount || 0) === 1 ? '' : 's'}
                   </span>
                 ) : (
                   <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">

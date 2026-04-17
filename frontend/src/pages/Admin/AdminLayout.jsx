@@ -25,9 +25,9 @@ const AdminLayout = () => {
     } catch {
       // even if API logout fails, clear local session
     }
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('role');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('role');
     navigate('/login');
   };
 

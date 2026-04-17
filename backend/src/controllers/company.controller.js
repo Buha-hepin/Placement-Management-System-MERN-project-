@@ -5,6 +5,9 @@ import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { Application } from "../models/application.model.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import jwt from "jsonwebtoken";
+
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "dev_access_secret_change_me";
 
 const parseAndValidateDeadline = (value) => {
     if (!value) {
@@ -31,12 +34,26 @@ const parseAndValidateDeadline = (value) => {
 };
 
 const resolveCompanyId = (req) => {
+    const tokenCompanyId = (() => {
+        const token = String(req.cookies?.accessToken || "").trim();
+        if (!token) return "";
+
+        try {
+            const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
+            if (decoded?.role !== "company") return "";
+            return String(decoded?.id || "").trim();
+        } catch {
+            return "";
+        }
+    })();
+
     const authCompanyId = String(req.user?.id || "");
     const paramCompanyId = String(req.params?.id || "");
     const bodyCompanyId = String(req.body?.companyId || "");
     const queryCompanyId = String(req.query?.companyId || "");
 
-    const resolvedCompanyId = authCompanyId || paramCompanyId || bodyCompanyId || queryCompanyId;
+    // Logged-in company cookie is authoritative for company self-service routes.
+    const resolvedCompanyId = tokenCompanyId || paramCompanyId || bodyCompanyId || queryCompanyId || authCompanyId;
     if (!resolvedCompanyId) {
         throw new apierror(400, "Company ID is required");
     }

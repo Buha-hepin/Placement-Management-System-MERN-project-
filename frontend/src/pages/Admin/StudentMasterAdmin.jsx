@@ -20,7 +20,10 @@ export default function StudentMasterAdmin() {
   const [csvFile, setCsvFile] = useState(null);
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [csvPreviewRows, setCsvPreviewRows] = useState([]);
+  const [csvParsedRows, setCsvParsedRows] = useState([]);
   const [lastUploadSummary, setLastUploadSummary] = useState(null);
+  const [lastUploadedSheet, setLastUploadedSheet] = useState(null);
+  const [showUploadedSheet, setShowUploadedSheet] = useState(false);
 
   useEffect(() => {
     fetchRecords();
@@ -98,10 +101,18 @@ export default function StudentMasterAdmin() {
       formData.append('file', csvFile);
       const response = await uploadStudentMasterCsv(formData);
       setLastUploadSummary(response?.data || null);
+      setLastUploadedSheet({
+        fileName: String(csvFile?.name || 'uploaded.csv'),
+        headers: Array.isArray(csvHeaders) ? [...csvHeaders] : [],
+        rows: Array.isArray(csvParsedRows) ? [...csvParsedRows] : [],
+        uploadedAt: new Date().toISOString()
+      });
+      setShowUploadedSheet(true);
       window.appAlert(response?.message || 'CSV uploaded successfully');
       setCsvFile(null);
       setCsvHeaders([]);
       setCsvPreviewRows([]);
+      setCsvParsedRows([]);
       await fetchRecords();
     } catch (error) {
       window.appAlert(error.message || 'CSV upload failed');
@@ -144,6 +155,7 @@ export default function StudentMasterAdmin() {
     if (!file) {
       setCsvHeaders([]);
       setCsvPreviewRows([]);
+      setCsvParsedRows([]);
       return;
     }
 
@@ -162,7 +174,7 @@ export default function StudentMasterAdmin() {
       }
 
       const headers = parseCsvLine(lines[0]);
-      const rows = lines.slice(1, 26).map((line) => {
+      const rows = lines.slice(1).map((line) => {
         const values = parseCsvLine(line);
         const row = {};
         headers.forEach((header, index) => {
@@ -172,7 +184,8 @@ export default function StudentMasterAdmin() {
       });
 
       setCsvHeaders(headers);
-      setCsvPreviewRows(rows);
+      setCsvParsedRows(rows);
+      setCsvPreviewRows(rows.slice(0, 25));
     };
 
     reader.readAsText(file);
@@ -219,6 +232,15 @@ export default function StudentMasterAdmin() {
           >
             <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload CSV'}
           </button>
+          {!!lastUploadedSheet && (
+            <button
+              type="button"
+              onClick={() => setShowUploadedSheet((prev) => !prev)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            >
+              {showUploadedSheet ? 'Hide Uploaded Sheet' : 'View Uploaded Sheet'}
+            </button>
+          )}
         </div>
 
         {!!csvFile && (
@@ -265,6 +287,46 @@ export default function StudentMasterAdmin() {
               <p>Updated: {Number(lastUploadSummary.updated || 0)}</p>
               <p>Invalid: {Number(lastUploadSummary.invalid || 0)}</p>
             </div>
+          </div>
+        )}
+
+        {showUploadedSheet && !!lastUploadedSheet && (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 space-y-2">
+            <p className="text-sm font-semibold text-indigo-900">
+              Uploaded Sheet: {lastUploadedSheet.fileName}
+            </p>
+            <p className="text-xs text-indigo-700">
+              Uploaded at: {new Date(lastUploadedSheet.uploadedAt).toLocaleString()} | Rows: {lastUploadedSheet.rows.length}
+            </p>
+
+            {lastUploadedSheet.headers.length > 0 ? (
+              <div className="max-h-80 overflow-auto bg-white rounded-lg border border-indigo-100">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-indigo-100 text-indigo-900 sticky top-0">
+                    <tr>
+                      {lastUploadedSheet.headers.map((header, index) => (
+                        <th key={`${header}-${index}`} className="px-3 py-2 text-left font-semibold">
+                          {header || `Column ${index + 1}`}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lastUploadedSheet.rows.map((row, idx) => (
+                      <tr key={idx} className="border-t border-indigo-50">
+                        {lastUploadedSheet.headers.map((header, colIdx) => (
+                          <td key={`${idx}-${colIdx}`} className="px-3 py-2 text-gray-700">
+                            {row[header || `Column ${colIdx + 1}`] || '-'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-indigo-700">Uploaded sheet data is not available.</p>
+            )}
           </div>
         )}
       </div>

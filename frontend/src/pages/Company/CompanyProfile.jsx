@@ -13,14 +13,11 @@ const defaultCompanyProfile = {
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
 const resolveCompanyId = () => {
-  const direct = String(localStorage.getItem('companyId') || '').trim();
+  const direct = String(sessionStorage.getItem('companyId') || '').trim();
   if (isValidMongoId(direct)) return direct;
 
-  const fallbackUserId = String(localStorage.getItem('userId') || '').trim();
-  if (isValidMongoId(fallbackUserId)) return fallbackUserId;
-
   try {
-    const cached = JSON.parse(localStorage.getItem('companyData') || '{}');
+    const cached = JSON.parse(sessionStorage.getItem('companyData') || '{}');
     const cachedId = String(cached?._id || '').trim();
     if (isValidMongoId(cachedId)) return cachedId;
   } catch {
@@ -36,7 +33,7 @@ export default function CompanyProfile() {
   
   useEffect(() => {
     const storedCompanyId = resolveCompanyId();
-    const storedCompanyData = localStorage.getItem('companyData');
+    const storedCompanyData = sessionStorage.getItem('companyData');
 
     if (storedCompanyData) {
       try {
@@ -53,7 +50,7 @@ export default function CompanyProfile() {
 
     const fetchCompanyDetails = async () => {
       if (!storedCompanyId) {
-        console.error('Company ID not found in localStorage');
+          console.error('Company ID not found in sessionStorage');
         return;
       }
 
@@ -66,11 +63,11 @@ export default function CompanyProfile() {
             about: result.data.about || result.data.description || '',
           };
           setCompanyProfile(nextProfile);
-          localStorage.setItem('companyId', result.data._id || storedCompanyId);
-          localStorage.setItem('userId', result.data._id || storedCompanyId);
-          localStorage.setItem('role', 'company');
-          localStorage.setItem('userRole', 'company');
-          localStorage.setItem('companyData', JSON.stringify(result.data));
+          sessionStorage.setItem('companyId', result.data._id || storedCompanyId);
+          sessionStorage.setItem('userId', result.data._id || storedCompanyId);
+          sessionStorage.setItem('role', 'company');
+          sessionStorage.setItem('userRole', 'company');
+          sessionStorage.setItem('companyData', JSON.stringify(result.data));
         }
       } catch (error) {
         console.error('Error fetching company profile:', error);
@@ -106,11 +103,11 @@ export default function CompanyProfile() {
           about: response.data.about || response.data.description || '',
         };
         setCompanyProfile(updatedProfile);
-        localStorage.setItem('companyId', response.data._id || companyId);
-        localStorage.setItem('userId', response.data._id || companyId);
-        localStorage.setItem('role', 'company');
-        localStorage.setItem('userRole', 'company');
-        localStorage.setItem('companyData', JSON.stringify(response.data));
+        sessionStorage.setItem('companyId', response.data._id || companyId);
+        sessionStorage.setItem('userId', response.data._id || companyId);
+        sessionStorage.setItem('role', 'company');
+        sessionStorage.setItem('userRole', 'company');
+        sessionStorage.setItem('companyData', JSON.stringify(response.data));
       }
 
       window.appAlert('Company profile updated successfully!');

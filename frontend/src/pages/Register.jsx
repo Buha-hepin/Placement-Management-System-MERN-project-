@@ -257,11 +257,11 @@ function Register() {
         const response = await registerUser(dataToSend);
         const createdCompany = response?.data;
         if (createdCompany?._id) {
-          localStorage.setItem('userId', createdCompany._id);
-          localStorage.setItem('companyId', createdCompany._id);
-          localStorage.setItem('role', 'company');
-          localStorage.setItem('userRole', 'company');
-          localStorage.setItem('companyData', JSON.stringify(createdCompany));
+          sessionStorage.setItem('userId', createdCompany._id);
+          sessionStorage.setItem('companyId', createdCompany._id);
+          sessionStorage.setItem('role', 'company');
+          sessionStorage.setItem('userRole', 'company');
+          sessionStorage.setItem('companyData', JSON.stringify(createdCompany));
         }
 
         showToast({

@@ -1,0 +1,26 @@
+{
+  "records": [
+    {
+      "enrollmentNo": "23BEIT30012",
+      "semesters": [
+        { "semester": 1, "spi": 7.18, "cpi": 7.18, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 2, "spi": 7.34, "cpi": 7.26, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 3, "spi": 7.42, "cpi": 7.31, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 4, "spi": 7.55, "cpi": 7.37, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 5, "spi": 7.63, "cpi": 7.42, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 6, "spi": 7.76, "cpi": 7.48, "backlogCount": 0, "backlogSubjects": [] }
+      ]
+    },
+    {
+      "enrollmentNo": "23BEIT30043",
+      "semesters": [
+        { "semester": 1, "spi": 6.92, "cpi": 6.92, "backlogCount": 1, "backlogSubjects": ["mathematics"] },
+        { "semester": 2, "spi": 7.08, "cpi": 7.00, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 3, "spi": 7.24, "cpi": 7.08, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 4, "spi": 7.36, "cpi": 7.15, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 5, "spi": 7.49, "cpi": 7.22, "backlogCount": 0, "backlogSubjects": [] },
+        { "semester": 6, "spi": 7.62, "cpi": 7.29, "backlogCount": 0, "backlogSubjects": [] }
+      ]
+    }
+  ]
+}
