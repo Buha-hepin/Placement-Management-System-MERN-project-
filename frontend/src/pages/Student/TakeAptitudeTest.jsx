@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiClock, FiChevronLeft, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
 import { startTest, saveAnswer, submitTest, getTestResults } from '../../services/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 const resolveQuestionAssetUrl = (url) => {
   if (!url) return '';

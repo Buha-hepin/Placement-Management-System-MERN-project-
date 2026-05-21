@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Eye, Trash2, Upload, X } from 'lucide-react';
 import { deletePlacementMaterial, getPlacementMaterials, uploadPlacementMaterial } from '../../services/api.js';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 const resolveFileUrl = (url) => {
   if (!url) return '#';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  return `${base}${url}`;
+  return `${API_BASE_URL}${url}`;
 };
 
 export default function PlacementMaterialsAdmin() {

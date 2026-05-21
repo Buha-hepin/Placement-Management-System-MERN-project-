@@ -1,5 +1,7 @@
 // API service layer: wraps fetch calls with consistent error handling
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../utils/apiBaseUrl.js';
+
+const BASE_URL = API_BASE_URL;
 
 export async function registerUser(payload) {
   const url = `${BASE_URL}/api/v1/users/register`;

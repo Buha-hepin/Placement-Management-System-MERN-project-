@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Edit2, FileText, Upload, Download, X, Check } from 'lucide-react'; 
 import { useNavigate } from 'react-router-dom';
 import { getStudentProfile, updateStudentProfile, updateStudentSkills, uploadResume } from '../../services/api.js';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 const buildDefaultSemesters = () => (
   Array.from({ length: 8 }, (_, index) => ({
@@ -71,8 +72,7 @@ const StudentProfile = () => {
   const resolveResumeUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    return `${base}${url}`;
+    return `${API_BASE_URL}${url}`;
   };
 
   // Resolve student ID safely to avoid API calls with stale/non-Mongo IDs.

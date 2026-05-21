@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiSearch, FiEye, FiDownload } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getJobApplicants, getCompanyJobs, updateApplicantStatus, updateApplicantsBulkStatus } from '../../services/api.js';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 const isValidMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || '').trim());
 
@@ -54,8 +55,7 @@ export default function CompanyApplicants() {
   const resolveResumeUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    return `${base}${url}`;
+    return `${API_BASE_URL}${url}`;
   };
 
   useEffect(() => {

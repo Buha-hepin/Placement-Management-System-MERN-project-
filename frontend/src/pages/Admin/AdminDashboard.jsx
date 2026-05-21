@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Building2, CheckCircle, XCircle, Briefcase, TrendingUp, Clock } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({

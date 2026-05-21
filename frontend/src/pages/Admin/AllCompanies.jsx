@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Search, Building2, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { API_BASE_URL } from '../../utils/apiBaseUrl.js';
 
 export default function AllCompanies() {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
