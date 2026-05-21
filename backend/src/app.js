@@ -10,12 +10,22 @@ dotenv.config();
 const app = express()
 
 // Allowed frontend origins for CORS
-const allowedOrigins = ["http://localhost:5173", "http://localhost:8000"];
+const rawCorsOrigins = String(process.env.CORS_ORIGIN || '').trim();
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:8000',
+  'https://placement-management-system-mern-pr.vercel.app',
+];
+const allowedOrigins = rawCorsOrigins === '*'
+  ? '*'
+  : (rawCorsOrigins
+      ? rawCorsOrigins.split(',').map((origin) => origin.trim()).filter(Boolean)
+      : defaultAllowedOrigins);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins === '*' || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
