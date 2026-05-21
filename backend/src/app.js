@@ -15,6 +15,9 @@ const defaultAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:8000',
   'https://placement-management-system-mern-pr.vercel.app',
+  'https://placement-management-system-mern-pr.vercel.app',
+  'http://localhost:5173',
+  'http://10.117.130.3:5173',
 ];
 const allowedOrigins = rawCorsOrigins === '*'
   ? '*'
