@@ -9,7 +9,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [tailwindcss(), react()],
     server: {
-      host: true, // Expose to LAN (0.0.0.0)
       proxy: {
         '/api': env.VITE_API_BASE_URL,
       },
